@@ -20,6 +20,16 @@ const fetchFred = async (url: string) => {
   return fetch(proxiedUrl);
 };
 
+const parseFredJson = async (response: Response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    const preview = text.slice(0, 200);
+    throw new Error(`FRED JSON parse failed: ${preview}`);
+  }
+};
+
 export interface SP500Data {
   date: string;
   close: number;
@@ -30,13 +40,20 @@ export interface SP500Data {
 // S&P 500 일일 데이터 가져오기 (SPY ETF 사용)
 export const fetchSP500DailyData = async (): Promise<SP500Data[]> => {
   try {
-    const response = await fetchFred(buildFredUrl({ series_id: 'SP500' }));
+    const response = await fetchFred(
+      buildFredUrl({
+        series_id: 'SP500',
+        observation_start: '2000-01-01',
+        sort_order: 'desc',
+        limit: '4000',
+      })
+    );
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const data = await response.json();
+    const data = await parseFredJson(response);
     
     if (!data.observations) {
       throw new Error('시계열 데이터를 찾을 수 없습니다');
@@ -93,14 +110,21 @@ export const fetchSP500RealTimePrice = async (): Promise<{ price: number; change
 export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
   try {
     const response = await fetchFred(
-      buildFredUrl({ series_id: 'SP500', frequency: 'monthly', aggregation_method: 'avg' })
+      buildFredUrl({
+        series_id: 'SP500',
+        frequency: 'monthly',
+        aggregation_method: 'avg',
+        observation_start: '2000-01-01',
+        sort_order: 'desc',
+        limit: '400',
+      })
     );
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const data = await response.json();
+    const data = await parseFredJson(response);
     
     if (!data.observations) {
       throw new Error('월간 시계열 데이터를 찾을 수 없습니다');
@@ -145,7 +169,9 @@ export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
 // API 호출 제한 확인
 export const checkApiLimit = async (): Promise<boolean> => {
   try {
-    const response = await fetchFred(buildFredUrl({ series_id: 'SP500' }));
+    const response = await fetchFred(
+      buildFredUrl({ series_id: 'SP500', observation_start: '2000-01-01', limit: '10' })
+    );
     return response.ok;
   } catch (error) {
     console.error('API 제한 확인 실패:', error);

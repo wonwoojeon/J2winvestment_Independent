@@ -20,6 +20,16 @@ const fetchFred = async (url: string) => {
   return fetch(proxiedUrl);
 };
 
+const parseFredJson = async (response: Response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text) as AlphaVantageResponse;
+  } catch (error) {
+    const preview = text.slice(0, 200);
+    throw new Error(`FRED JSON parse failed: ${preview}`);
+  }
+};
+
 export interface SP500Data {
   date: string;
   open: number;
@@ -44,14 +54,19 @@ export interface AlphaVantageResponse {
 export const fetchSP500Data = async (_outputSize: 'compact' | 'full' = 'compact'): Promise<SP500Data[]> => {
   try {
     console.log('📊 FRED API 호출 시작 - S&P 500 데이터');
-    const url = buildFredUrl({ series_id: 'SP500' });
+    const url = buildFredUrl({
+      series_id: 'SP500',
+      observation_start: '2000-01-01',
+      sort_order: 'desc',
+      limit: '4000',
+    });
     const response = await fetchFred(url);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const data: AlphaVantageResponse = await response.json();
+    const data = await parseFredJson(response);
     
     if (data.error_code || data.error_message) {
       throw new Error(`FRED API Error: ${data.error_message || data.error_code}`);
