@@ -65,11 +65,15 @@ const CustomizedDot = (props: any) => {
   if (hasMemo) {
     const isImportant =
       payload.hasImportantMemo || payload.importantTag || hasImportantMemo(payload.memo);
-    const fillColor = isImportant ? '#facc15' : '#ef4444';
-    const strokeColor = isImportant ? '#fde047' : 'white';
-    return (
-      <circle cx={cx} cy={cy} r={6} stroke={strokeColor} strokeWidth={2} fill={fillColor} />
-    );
+    if (isImportant) {
+      return (
+        <g>
+          <circle cx={cx} cy={cy} r={9} fill="rgba(250, 204, 21, 0.25)" />
+          <circle cx={cx} cy={cy} r={6.5} fill="#fde047" stroke="#f59e0b" strokeWidth={2} />
+        </g>
+      );
+    }
+    return <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#ef4444" />;
   }
   
   // 일반 데이터 포인트는 표시하지 않음
