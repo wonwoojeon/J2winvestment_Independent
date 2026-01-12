@@ -31,6 +31,8 @@ export interface MemoEntry {
   importantTag?: string;
 }
 
+export type PlanStatus = 'planned' | 'executed' | 'deviated';
+
 export interface InvestmentJournal {
   id: string;
   user_id?: string;
@@ -47,6 +49,10 @@ export interface InvestmentJournal {
   bearMarketChecklist: ChecklistItem[];
   marketIssues?: string;
   memo?: MemoEntry[] | string | null;
+  planText?: string;
+  executionText?: string;
+  deviationReason?: string;
+  planStatus?: PlanStatus;
 }
 
 // 🔥 사용자 프로필 인터페이스 추가
@@ -67,4 +73,16 @@ export interface PublicJournalSearchResult {
   journal: InvestmentJournal;
   user_profile: UserProfile;
   match_score?: number;
+}
+
+export interface InvestmentScenario {
+  id: string;
+  user_id: string;
+  title: string;
+  hypothesis?: string;
+  trigger?: string;
+  invalidation?: string;
+  status: 'open' | 'confirmed' | 'invalidated';
+  created_at: string;
+  updated_at: string;
 }

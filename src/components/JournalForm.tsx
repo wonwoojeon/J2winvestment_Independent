@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 // NOTE: when bundling the application the Lucide icons can be tree‑shaken and may
 // not always register correctly when referenced by their original names.  To
 // avoid run‑time errors such as `ReferenceError: TrendingUp is not defined` we
@@ -23,7 +24,7 @@ import {
   AlertTriangle,
   TrendingUp as LucideTrendingUp,
 } from 'lucide-react';
-import { InvestmentJournal, ChecklistItem } from '@/types/investment';
+import { InvestmentJournal, ChecklistItem, PlanStatus } from '@/types/investment';
 import { getDefaultChecklists } from '@/lib/storage';
 import { AssetInput } from './AssetInput';
 import { fetchComprehensivePsychologyData, getAccurateExchangeRate } from '@/lib/api';
@@ -63,7 +64,11 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     bullMarketChecklist: initialData?.bullMarketChecklist || [],
     bearMarketChecklist: initialData?.bearMarketChecklist || [],
     marketIssues: initialData?.marketIssues || '',
-    memo: initialMemoEntries
+    memo: initialMemoEntries,
+    planText: initialData?.planText || '',
+    executionText: initialData?.executionText || '',
+    deviationReason: initialData?.deviationReason || '',
+    planStatus: initialData?.planStatus || 'planned'
   });
 
   const [exchangeRate, setExchangeRate] = useState(1300);
@@ -724,6 +729,58 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                     disabled={!isImportantMemo}
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 6. 플랜 추적 */}
+          <Card className="bg-slate-900 border-slate-800 shadow-lg">
+            <CardHeader>
+              <CardTitle className="text-lg font-semibold text-slate-100">플랜 추적</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label className="text-slate-400">플랜 상태</Label>
+                <Select
+                  value={formData.planStatus || 'planned'}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, planStatus: value as PlanStatus }))}
+                >
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                    <SelectValue placeholder="플랜 상태 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planned">계획</SelectItem>
+                    <SelectItem value="executed">실행</SelectItem>
+                    <SelectItem value="deviated">이탈</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-400">계획</Label>
+                <Textarea
+                  value={formData.planText}
+                  onChange={(e) => setFormData(prev => ({ ...prev, planText: e.target.value }))}
+                  placeholder="오늘의 계획을 간단히 정리하세요"
+                  className="bg-slate-800 border-slate-700 text-white min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-400">실행</Label>
+                <Textarea
+                  value={formData.executionText}
+                  onChange={(e) => setFormData(prev => ({ ...prev, executionText: e.target.value }))}
+                  placeholder="실행 결과를 기록하세요"
+                  className="bg-slate-800 border-slate-700 text-white min-h-[100px]"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-slate-400">이탈 사유</Label>
+                <Textarea
+                  value={formData.deviationReason}
+                  onChange={(e) => setFormData(prev => ({ ...prev, deviationReason: e.target.value }))}
+                  placeholder="계획에서 벗어난 이유를 기록하세요"
+                  className="bg-slate-800 border-slate-700 text-white min-h-[80px]"
+                />
               </div>
             </CardContent>
           </Card>

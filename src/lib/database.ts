@@ -127,7 +127,11 @@ export async function searchPublicJournals(nickname: string): Promise<PublicJour
         bullMarketChecklist: item.bull_market_checklist || [],
         bearMarketChecklist: item.bear_market_checklist || [],
         marketIssues: item.market_issues,
-        memo: item.memo
+        memo: item.memo,
+        planText: item.plan_text || '',
+        executionText: item.execution_text || '',
+        deviationReason: item.deviation_reason || '',
+        planStatus: item.plan_status || 'planned'
       },
       user_profile: item.user_profiles
     }));
@@ -181,6 +185,10 @@ export async function saveJournalToSupabase(journal: InvestmentJournal): Promise
       bear_market_checklist: journal.bearMarketChecklist,
       market_issues: journal.marketIssues,
       memo: memoEntries,
+      plan_text: journal.planText || '',
+      execution_text: journal.executionText || '',
+      deviation_reason: journal.deviationReason || '',
+      plan_status: journal.planStatus || 'planned',
       has_important_memo: hasImportantMemo(memoEntries),
       important_tag: getImportantMemoTag(memoEntries) || null,
       created_at: new Date().toISOString(),
@@ -227,7 +235,11 @@ export async function getJournalsFromSupabase(): Promise<InvestmentJournal[]> {
       bullMarketChecklist: item.bull_market_checklist || [],
       bearMarketChecklist: item.bear_market_checklist || [],
       marketIssues: item.market_issues,
-      memo: item.memo
+      memo: item.memo,
+      planText: item.plan_text || '',
+      executionText: item.execution_text || '',
+      deviationReason: item.deviation_reason || '',
+      planStatus: item.plan_status || 'planned'
     }));
   } catch (error) {
     console.error('Supabase 일지 조회 실패:', error);

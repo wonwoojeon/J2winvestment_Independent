@@ -9,6 +9,8 @@ import { UserAssetChart } from '../components/UserAssetChart';
 import { BibleVerseTicker } from '../components/BibleVerseTicker';
 import AssetChangeChart from '../components/AssetChangeChart';
 import { MemoList } from '../components/MemoList';
+import { RiskSnapshot } from '../components/RiskSnapshot';
+import { ScenarioTracker } from '../components/ScenarioTracker';
 import { InvestmentJournal, PublicJournalSearchResult } from '../types/investment';
 import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -247,7 +249,11 @@ function Index() {
         bullMarketChecklist: Array.isArray(journal.bull_market_checklist) ? journal.bull_market_checklist : [],
         bearMarketChecklist: Array.isArray(journal.bear_market_checklist) ? journal.bear_market_checklist : [],
         marketIssues: journal.market_issues || '',
-        memo: journal.memo ?? ''
+        memo: journal.memo ?? '',
+        planText: journal.plan_text || '',
+        executionText: journal.execution_text || '',
+        deviationReason: journal.deviation_reason || '',
+        planStatus: journal.plan_status || 'planned'
       }));
       
       setJournals(convertedJournals);
@@ -363,6 +369,10 @@ function Index() {
         bear_market_checklist: journal.bearMarketChecklist || [],
         market_issues: journal.marketIssues || '',
         memo: memoEntries,
+        plan_text: journal.planText || '',
+        execution_text: journal.executionText || '',
+        deviation_reason: journal.deviationReason || '',
+        plan_status: journal.planStatus || 'planned',
         has_important_memo: hasImportantMemo(memoEntries),
         important_tag: getImportantMemoTag(memoEntries) || null,
         is_public: false,
@@ -420,6 +430,8 @@ function Index() {
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('ko-KR', { year: '2-digit', month: 'numeric', day: 'numeric', weekday: 'short' });
   };
+
+  const latestJournal = journals[0] || null;
 
   if (loading) {
     return (
@@ -725,11 +737,17 @@ function Index() {
           <DashboardBibleVerseTicker />
         </div>
 
+        {/* 리스크 스냅샷 */}
+        <RiskSnapshot journal={latestJournal} exchangeRate={exchangeRate} />
+
         {/* 자산 차트 */}
         <AssetChangeChart 
           onPointClick={handleChartPointClick} 
           onViewMemos={() => setCurrentView('memoList')}
         />
+
+        {/* 시나리오 트래커 */}
+        <ScenarioTracker />
 
         {/* 최근 투자일지 목록 */}
         <div className="space-y-4">

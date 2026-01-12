@@ -42,7 +42,8 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     trades: !!(journal.trades && journal.trades.trim().length > 0), // 내용이 있으면 펼쳐진 상태
     psychology: true,
     checklists: true,
-    memo: !!memoText || !!(journal.marketIssues && journal.marketIssues.trim().length > 0) // 내용이 있으면 펼쳐진 상태
+    memo: !!memoText || !!(journal.marketIssues && journal.marketIssues.trim().length > 0), // 내용이 있으면 펼쳐진 상태
+    plan: !!(journal.planText || journal.executionText || journal.deviationReason)
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -119,6 +120,18 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     if (value >= 45) return { text: '중립', color: 'text-yellow-500' };
     if (value >= 25) return { text: '공포', color: 'text-blue-500' };
     return { text: '극도의 공포', color: 'text-purple-500' };
+  };
+
+  const planStatusLabels: Record<string, string> = {
+    planned: '계획',
+    executed: '실행',
+    deviated: '이탈'
+  };
+
+  const planStatusClasses: Record<string, string> = {
+    planned: 'border-slate-600 text-slate-300 bg-slate-800/40',
+    executed: 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10',
+    deviated: 'border-rose-500/40 text-rose-400 bg-rose-500/10'
   };
 
   return (
@@ -473,6 +486,56 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                   </div>
                 )}
               </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* 플랜 추적 */}
+      {(journal.planText || journal.executionText || journal.deviationReason) && (
+        <Card className="bg-gray-800 border-0 shadow-md rounded-lg overflow-hidden">
+          <CardHeader className="cursor-pointer bg-gray-700 p-4" onClick={() => toggleSection('plan')}>
+            <CardTitle className="flex items-center justify-between text-lg font-semibold text-white">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+                플랜 추적
+              </div>
+              <div className="flex items-center gap-3">
+                {journal.planStatus && (
+                  <Badge variant="outline" className={`text-xs ${planStatusClasses[journal.planStatus] || ''}`}>
+                    {planStatusLabels[journal.planStatus] || journal.planStatus}
+                  </Badge>
+                )}
+                {expandedSections.plan ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          {expandedSections.plan && (
+            <CardContent className="p-4 space-y-4">
+              {journal.planText && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-gray-300">계획</h3>
+                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                    {journal.planText}
+                  </div>
+                </div>
+              )}
+              {journal.executionText && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-gray-300">실행</h3>
+                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                    {journal.executionText}
+                  </div>
+                </div>
+              )}
+              {journal.deviationReason && (
+                <div>
+                  <h3 className="font-semibold mb-2 text-gray-300">이탈 사유</h3>
+                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                    {journal.deviationReason}
+                  </div>
+                </div>
+              )}
             </CardContent>
           )}
         </Card>
