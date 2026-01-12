@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RefreshCw, Trash2, Edit3 } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { InvestmentScenario } from '@/types/investment';
 
@@ -39,6 +39,7 @@ export const ScenarioTracker: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [expandedScenarios, setExpandedScenarios] = useState<Record<string, boolean>>({});
 
   const loadScenarios = async () => {
     try {
@@ -149,6 +150,13 @@ export const ScenarioTracker: React.FC = () => {
       console.error('❌ 시나리오 삭제 실패:', error);
       alert('시나리오 삭제에 실패했습니다.');
     }
+  };
+
+  const toggleScenario = (scenarioId: string) => {
+    setExpandedScenarios(prev => ({
+      ...prev,
+      [scenarioId]: !prev[scenarioId]
+    }));
   };
 
   return (
@@ -269,49 +277,78 @@ export const ScenarioTracker: React.FC = () => {
             아직 등록된 시나리오가 없습니다.
           </div>
         ) : (
-          scenarios.slice(0, 5).map((scenario) => (
-            <div key={scenario.id} className="bg-slate-950/40 border border-slate-800 rounded-lg p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-slate-100 font-semibold">{scenario.title}</div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-xs ${statusStyles[scenario.status]}`}>
-                    {statusLabels[scenario.status]}
-                  </Badge>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-slate-400 hover:text-white"
-                    onClick={() => handleEdit(scenario)}
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-rose-400 hover:text-rose-300"
-                    onClick={() => handleDelete(scenario.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+          scenarios.slice(0, 5).map((scenario) => {
+            const isExpanded = !!expandedScenarios[scenario.id];
+            return (
+              <div key={scenario.id} className="bg-slate-950/40 border border-slate-800 rounded-lg p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-slate-100 font-semibold truncate">
+                      {scenario.title}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-xs ${statusStyles[scenario.status]}`}>
+                      {statusLabels[scenario.status]}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-slate-400 hover:text-white"
+                      onClick={() => toggleScenario(scenario.id)}
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="h-4 w-4 mr-1" />
+                          접기
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="h-4 w-4 mr-1" />
+                          펼치기
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-slate-400 hover:text-white"
+                      onClick={() => handleEdit(scenario)}
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-rose-400 hover:text-rose-300"
+                      onClick={() => handleDelete(scenario.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
+                {isExpanded && (
+                  <div className="space-y-2">
+                    {scenario.hypothesis && (
+                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                        가정: {scenario.hypothesis}
+                      </div>
+                    )}
+                    {scenario.trigger && (
+                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                        트리거: {scenario.trigger}
+                      </div>
+                    )}
+                    {scenario.invalidation && (
+                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                        무효화: {scenario.invalidation}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {scenario.hypothesis && (
-                <div className="text-xs text-slate-400 whitespace-pre-wrap">
-                  가정: {scenario.hypothesis}
-                </div>
-              )}
-              {scenario.trigger && (
-                <div className="text-xs text-slate-400 whitespace-pre-wrap">
-                  트리거: {scenario.trigger}
-                </div>
-              )}
-              {scenario.invalidation && (
-                <div className="text-xs text-slate-400 whitespace-pre-wrap">
-                  무효화: {scenario.invalidation}
-                </div>
-              )}
-            </div>
-          ))
+            );
+          })
         )}
       </CardContent>
     </Card>
