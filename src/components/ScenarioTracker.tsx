@@ -283,7 +283,11 @@ export const ScenarioTracker: React.FC = () => {
               <div key={scenario.id} className="bg-slate-950/40 border border-slate-800 rounded-lg p-4 space-y-2">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="text-slate-100 font-semibold truncate">
+                    <div
+                      className={`text-slate-100 font-semibold ${
+                        isExpanded ? 'whitespace-normal break-words' : 'truncate'
+                      }`}
+                    >
                       {scenario.title}
                     </div>
                   </div>
