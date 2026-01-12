@@ -76,6 +76,7 @@ interface UserProfile {
   nickname: string;
   bio: string;
   avatar_url: string;
+  is_public: boolean;
   latest_assets: number;
   journal_count: number;
   total_return: number;
@@ -109,6 +110,7 @@ export const PublicJournalSearch: React.FC<PublicJournalSearchProps> = ({
       const { data: profiles, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
+        .eq('is_public', true)
         .not('nickname', 'is', null)
         .limit(20);
 
@@ -214,6 +216,7 @@ export const PublicJournalSearch: React.FC<PublicJournalSearchProps> = ({
         .from('user_profiles')
         .select('*')
         .ilike('nickname', `%${searchTerm}%`)
+        .eq('is_public', true)
         .not('nickname', 'is', null)
         .limit(20);
 

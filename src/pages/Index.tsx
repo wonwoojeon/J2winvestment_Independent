@@ -484,6 +484,26 @@ function Index() {
     );
   }
 
+  if (currentView === 'detail' && selectedJournal) {
+    const isPublicDetail = Boolean(selectedUserProfile);
+    const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
+    return (
+      <div className="min-h-screen bg-slate-950 text-white">
+        <JournalDetail
+          journal={selectedJournal}
+          onBack={() => {
+            setCurrentView(backTarget);
+            setSelectedJournal(null);
+          }}
+          onEdit={() => setCurrentView('form')}
+          onDelete={handleJournalDelete}
+          onMemoDelete={handleMemoDelete}
+          exchangeRate={exchangeRate}
+        />
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-950 text-white flex flex-col">
@@ -540,24 +560,6 @@ function Index() {
       <div className="min-h-screen bg-slate-950 text-white">
         <UserProfile
           onClose={() => setCurrentView('list')}
-        />
-      </div>
-    );
-  }
-
-  if (currentView === 'detail' && selectedJournal) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <JournalDetail
-          journal={selectedJournal}
-          onBack={() => {
-            setCurrentView('list');
-            setSelectedJournal(null);
-          }}
-          onEdit={() => setCurrentView('form')}
-          onDelete={handleJournalDelete}
-          onMemoDelete={handleMemoDelete}
-          exchangeRate={exchangeRate}
         />
       </div>
     );
