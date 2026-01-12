@@ -227,8 +227,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
       if (!clickedData || !clickedData.date) return;
       if (isMobile) {
         if (activeTooltip?.date === clickedData.date) {
-          setActiveTooltip(null);
-          setActiveTooltipLabel('');
+          onPointClick?.(clickedData.date);
           return;
         }
         setActiveTooltip(clickedData);
@@ -497,6 +496,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
                 active={isMobile ? Boolean(activeTooltip) : undefined}
                 payload={isMobile && activeTooltip ? [{ payload: activeTooltip }] : undefined}
                 label={isMobile ? activeTooltipLabel : undefined}
+                wrapperStyle={isMobile ? { pointerEvents: 'auto', zIndex: 50 } : undefined}
               />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
