@@ -47,6 +47,8 @@ interface ChartData {
   sp500Price?: number; // 원본 S&P 500 가격 저장
   memo?: MemoEntry[] | string | null;
   marketIssues?: string;
+  hasImportantMemo?: boolean;
+  importantTag?: string | null;
 }
 
 interface AssetChangeChartProps {
@@ -61,7 +63,10 @@ const CustomizedDot = (props: any) => {
   const hasMemo = memoEntries.length > 0 || Boolean(payload.marketIssues);
 
   if (hasMemo) {
-    const fillColor = hasImportantMemo(payload.memo) ? '#f7b500' : '#ef4444';
+    const fillColor =
+      payload.hasImportantMemo || payload.importantTag || hasImportantMemo(payload.memo)
+        ? '#f7b500'
+        : '#ef4444';
     return (
       <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill={fillColor} />
     );
@@ -140,7 +145,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
 
       const { data, error } = await supabase
         .from('investment_journals')
-        .select('date, total_assets, memo, market_issues')
+        .select('date, total_assets, memo, market_issues, has_important_memo, important_tag')
         .eq('user_id', user.id)
         .order('date', { ascending: true });
 
@@ -158,7 +163,9 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
         assetPercentage: 0,
         sp500Percentage: 0,
         memo: journal.memo || [],
-        marketIssues: journal.market_issues || ''
+        marketIssues: journal.market_issues || '',
+        hasImportantMemo: journal.has_important_memo ?? false,
+        importantTag: journal.important_tag ?? null
       }));
 
       setRawData(processedData);
@@ -237,7 +244,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const memoText = getMemoText(data.memo);
-      const importantTag = getImportantMemoTag(data.memo);
+      const importantTag = data.importantTag || getImportantMemoTag(data.memo);
       return (
         // Restrict the maximum width of the tooltip to prevent it from overflowing
         // the viewport.  Without this constraint long memos could cause the

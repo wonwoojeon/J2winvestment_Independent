@@ -15,7 +15,30 @@ export const normalizeMemoEntries = (
   }
   if (typeof memo === 'string') {
     const trimmed = memo.trim();
-    return trimmed ? [{ text: trimmed, isImportant: false, importantTag: '' }] : [];
+    if (!trimmed) return [];
+    const looksJson = trimmed.startsWith('[') || trimmed.startsWith('{');
+    if (looksJson) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return normalizeMemoEntries(parsed as MemoEntry[]);
+        }
+      } catch {
+        // fall through to secondary unescape
+      }
+      try {
+        const unescaped = trimmed
+          .replace(/\\n/g, '\n')
+          .replace(/\\"/g, '"');
+        const parsed = JSON.parse(unescaped);
+        if (Array.isArray(parsed)) {
+          return normalizeMemoEntries(parsed as MemoEntry[]);
+        }
+      } catch {
+        // fall through to treat as plain text
+      }
+    }
+    return [{ text: trimmed, isImportant: false, importantTag: '' }];
   }
   return [];
 };

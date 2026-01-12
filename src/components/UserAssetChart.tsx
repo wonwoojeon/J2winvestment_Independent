@@ -105,7 +105,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
     }
   };
 
-  // 실제 S&P 500 API 호출 (Alpha Vantage 사용)
+  // 실제 S&P 500 API 호출 (FRED 사용)
   const loadSP500Data = async () => {
     try {
       console.log('📈 실제 S&P 500 데이터 로드 시작');

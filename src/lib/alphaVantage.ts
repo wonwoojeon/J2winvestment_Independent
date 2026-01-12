@@ -1,6 +1,6 @@
-// Alpha Vantage API 연동 라이브러리
-const ALPHA_VANTAGE_API_KEY = import.meta.env.VITE_ALPHA_API_KEY as string | undefined;
-const BASE_URL = 'https://www.alphavantage.co/query';
+// FRED API 연동 라이브러리 (S&P 500)
+const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY as string | undefined;
+const BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
 
 export interface SP500Data {
   date: string;
@@ -12,36 +12,12 @@ export interface SP500Data {
 }
 
 export interface AlphaVantageResponse {
-  'Meta Data'?: {
-    '1. Information'?: string;
-    '2. Symbol'?: string;
-    '3. Last Refreshed'?: string;
-    '4. Output Size'?: string;
-    '5. Time Zone'?: string;
-  };
-  'Monthly Adjusted Time Series'?: Record<
-    string,
-    {
-      '1. open': string;
-      '2. high': string;
-      '3. low': string;
-      '4. close': string;
-      '5. adjusted close'?: string;
-      '6. volume': string;
-    }
-  >;
-  'Monthly Time Series'?: Record<
-    string,
-    {
-      '1. open': string;
-      '2. high': string;
-      '3. low': string;
-      '4. close': string;
-      '5. volume': string;
-    }
-  >;
-  'Error Message'?: string;
-  'Note'?: string;
+  observations?: Array<{
+    date: string;
+    value: string;
+  }>;
+  error_code?: number;
+  error_message?: string;
 }
 
 /**
@@ -49,11 +25,11 @@ export interface AlphaVantageResponse {
  */
 export const fetchSP500Data = async (_outputSize: 'compact' | 'full' = 'compact'): Promise<SP500Data[]> => {
   try {
-    console.log('📊 Alpha Vantage API 호출 시작 - S&P 500 데이터');
-    if (!ALPHA_VANTAGE_API_KEY) {
-      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    console.log('📊 FRED API 호출 시작 - S&P 500 데이터');
+    if (!FRED_API_KEY) {
+      throw new Error('VITE_FRED_API_KEY가 설정되지 않았습니다.');
     }
-    const url = `${BASE_URL}?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    const url = `${BASE_URL}?series_id=SP500&api_key=${FRED_API_KEY}&file_type=json`;
     
     const response = await fetch(url);
     
@@ -63,31 +39,29 @@ export const fetchSP500Data = async (_outputSize: 'compact' | 'full' = 'compact'
     
     const data: AlphaVantageResponse = await response.json();
     
-    // API 에러 체크
-    if (data['Error Message']) {
-      throw new Error(`Alpha Vantage API Error: ${data['Error Message']}`);
+    if (data.error_code || data.error_message) {
+      throw new Error(`FRED API Error: ${data.error_message || data.error_code}`);
     }
     
-    if (data['Note']) {
-      throw new Error(`Alpha Vantage API Limit: ${data['Note']}`);
+    if (!data.observations) {
+      throw new Error('Invalid response format from FRED API');
     }
     
-    const timeSeries = data['Monthly Adjusted Time Series'] || data['Monthly Time Series'];
-    if (!timeSeries) {
-      throw new Error('Invalid response format from Alpha Vantage API');
-    }
-    
-    // 데이터 변환
-    const sp500Data: SP500Data[] = Object.entries(timeSeries)
-      .map(([date, values]) => ({
-        date,
-        open: parseFloat(values['1. open']),
-        high: parseFloat(values['2. high']),
-        low: parseFloat(values['3. low']),
-        close: parseFloat(values['5. adjusted close'] ?? values['4. close']),
-        volume: parseInt(values['6. volume'] ?? values['5. volume'])
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // 날짜 오름차순 정렬
+    const sp500Data: SP500Data[] = data.observations
+      .map((item) => {
+        const value = parseFloat(item.value);
+        if (Number.isNaN(value)) return null;
+        return {
+          date: item.date,
+          open: value,
+          high: value,
+          low: value,
+          close: value,
+          volume: 0
+        };
+      })
+      .filter((item): item is SP500Data => Boolean(item))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
     console.log('✅ S&P 500 데이터 로드 완료:', sp500Data.length, '개 데이터');
     console.log('📅 데이터 범위:', sp500Data[0]?.date, '~', sp500Data[sp500Data.length - 1]?.date);
@@ -130,17 +104,8 @@ export const getLatestSP500Price = async (): Promise<number> => {
 };
 
 /**
- * API 사용량 체크 (하루 25회 제한)
+ * FRED는 기본적으로 사용량 제한이 느슨하므로 로컬 제한을 적용하지 않습니다.
  */
 export const checkAPIUsage = () => {
-  const today = new Date().toDateString();
-  const usageKey = `alphavantage_usage_${today}`;
-  const currentUsage = parseInt(localStorage.getItem(usageKey) || '0');
-  
-  if (currentUsage >= 25) {
-    throw new Error('일일 API 사용량 한도 초과 (25회/일)');
-  }
-  
-  localStorage.setItem(usageKey, (currentUsage + 1).toString());
-  console.log(`📊 Alpha Vantage API 사용량: ${currentUsage + 1}/25`);
+  return;
 };
