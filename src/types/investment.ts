@@ -39,6 +39,7 @@ export interface InvestmentJournal {
   date: string;
   totalAssets: number;
   evaluation: number;
+  exchangeRate?: number;
   foreignStocks: Stock[];
   domesticStocks: Stock[];
   cash: Cash;

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Calendar, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Brain, Eye } from 'lucide-react';
 import { PublicJournalSearchResult } from '@/types/investment';
 import { getImportantMemoTag, getMemoText } from '@/utils/memo';
+import { getJournalExchangeRate } from '@/utils/exchangeRate';
 
 interface PublicJournalDetailProps {
   result: PublicJournalSearchResult;
@@ -20,6 +21,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
   const { journal, user_profile } = result;
   const memoText = getMemoText(journal.memo);
   const importantTag = getImportantMemoTag(journal.memo);
+  const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
   
   const [expandedSections, setExpandedSections] = useState({
     assets: true,
@@ -55,7 +57,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
     const quantity = Number(stock?.quantity) || 0;
     return sum + (price * quantity);
   }, 0);
-  const foreignStocksTotalKRW = foreignStocksTotal * exchangeRate;
+  const foreignStocksTotalKRW = foreignStocksTotal * effectiveRate;
 
   const domesticStocksTotal = safeJournal.domesticStocks.reduce((sum, stock) => {
     const price = Number(stock?.price) || 0;
@@ -68,11 +70,11 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
     const quantity = Number(stock?.quantity) || 0;
     return sum + (price * quantity);
   }, 0);
-  const cryptoTotalKRW = cryptoTotal * exchangeRate;
+  const cryptoTotalKRW = cryptoTotal * effectiveRate;
 
   const cashKrw = Number(safeJournal.cash.krw) || 0;
   const cashUsd = Number(safeJournal.cash.usd) || 0;
-  const cashTotal = cashKrw + (cashUsd * exchangeRate);
+  const cashTotal = cashKrw + (cashUsd * effectiveRate);
 
   const totalAssets = foreignStocksTotalKRW + domesticStocksTotal + cryptoTotalKRW + cashTotal;
 
@@ -201,7 +203,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
                             </div>
                             <div className="text-right">
                               <div className="font-semibold text-white">
-                                {formatNumber((stock.price || 0) * (stock.quantity || 0) * exchangeRate)}원
+                                {formatNumber((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}원
                               </div>
                               <div className="text-sm text-gray-500">
                                 ${formatNumber((stock.price || 0) * (stock.quantity || 0))}

@@ -48,6 +48,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     date: initialData?.date || new Date().toISOString().split('T')[0],
     totalAssets: initialData?.totalAssets || 0,
     evaluation: initialData?.evaluation || 0,
+    exchangeRate: initialData?.exchangeRate ?? 1300,
     foreignStocks: initialData?.foreignStocks || [],
     domesticStocks: initialData?.domesticStocks || [],
     cash: initialData?.cash || { krw: 0, usd: 0 },
@@ -71,7 +72,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     planStatus: initialData?.planStatus || 'planned'
   });
 
-  const [exchangeRate, setExchangeRate] = useState(1300);
+  const [exchangeRate, setExchangeRate] = useState(initialData?.exchangeRate ?? 1300);
   const [psychologyLoading, setPsychologyLoading] = useState(false);
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
 
@@ -191,7 +192,9 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     initializeAssets();
     
     // 초기 로드 시 환율 가져오기
-    fetchExchangeRate();
+    if (!initialData?.exchangeRate) {
+      fetchExchangeRate();
+    }
   }, [initialData]);
 
   useEffect(() => {
@@ -207,6 +210,13 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
       memo: buildMemoEntries(memoText, isImportantMemo, importantTag)
     }));
   }, [memoText, isImportantMemo, importantTag]);
+
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      exchangeRate
+    }));
+  }, [exchangeRate]);
 
   // 기본 체크리스트 로드 함수
   const loadDefaultChecklists = (type: 'bull' | 'bear' | 'all') => {

@@ -179,7 +179,7 @@ function Index() {
   const [publicJournalResult, setPublicJournalResult] = useState<PublicJournalSearchResult | null>(null);
   const [selectedUserProfile, setSelectedUserProfile] = useState<any>(null);
   const [journals, setJournals] = useState<InvestmentJournal[]>([]);
-  const [exchangeRate, setExchangeRate] = useState(1300);
+  const [exchangeRate] = useState(1300);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -240,6 +240,7 @@ function Index() {
         date: journal.date || new Date().toISOString().split('T')[0],
         totalAssets: journal.total_assets || 0,
         evaluation: journal.evaluation || 0,
+        exchangeRate: journal.exchange_rate ? Number(journal.exchange_rate) : undefined,
         foreignStocks: Array.isArray(journal.foreign_stocks) ? journal.foreign_stocks : [],
         domesticStocks: Array.isArray(journal.domestic_stocks) ? journal.domestic_stocks : [],
         cash: journal.cash || { krw: 0, usd: 0 },
@@ -373,6 +374,7 @@ function Index() {
         execution_text: journal.executionText || '',
         deviation_reason: journal.deviationReason || '',
         plan_status: journal.planStatus || 'planned',
+        exchange_rate: journal.exchangeRate ?? null,
         has_important_memo: hasImportantMemo(memoEntries),
         important_tag: getImportantMemoTag(memoEntries) || null,
         is_public: false,

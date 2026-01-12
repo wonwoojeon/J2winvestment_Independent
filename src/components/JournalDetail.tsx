@@ -6,6 +6,7 @@ import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, Fil
 import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
 import { getImportantMemoTag, getMemoText } from '@/utils/memo';
+import { getJournalExchangeRate } from '@/utils/exchangeRate';
 
 interface JournalDetailProps {
   journal: InvestmentJournal;
@@ -78,13 +79,15 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     bearMarketChecklist: journal.bearMarketChecklist || []
   };
 
+  const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
+
   // 해외주식 총액 (USD -> KRW) - 완전한 안전성 보장
   const foreignStocksTotal = safeJournal.foreignStocks.reduce((sum, stock) => {
     const price = Number(stock?.price) || 0;
     const quantity = Number(stock?.quantity) || 0;
     return sum + (price * quantity);
   }, 0);
-  const foreignStocksTotalKRW = foreignStocksTotal * exchangeRate;
+  const foreignStocksTotalKRW = foreignStocksTotal * effectiveRate;
 
   // 국내주식 총액 - 안전성 보장
   const domesticStocksTotal = safeJournal.domesticStocks.reduce((sum, stock) => {
@@ -99,12 +102,12 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     const quantity = Number(stock?.quantity) || 0;
     return sum + (price * quantity);
   }, 0);
-  const cryptoTotalKRW = cryptoTotal * exchangeRate;
+  const cryptoTotalKRW = cryptoTotal * effectiveRate;
 
   // 현금 총액 - 안전성 보장
   const cashKrw = Number(safeJournal.cash.krw) || 0;
   const cashUsd = Number(safeJournal.cash.usd) || 0;
-  const cashTotal = cashKrw + (cashUsd * exchangeRate);
+  const cashTotal = cashKrw + (cashUsd * effectiveRate);
 
   // 전체 자산 총액
   const totalAssets = foreignStocksTotalKRW + domesticStocksTotal + cryptoTotalKRW + cashTotal;
@@ -245,7 +248,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                             </div>
                             <div className="text-right">
                               <div className="font-semibold text-white">
-                                {formatNumber((stock.price || 0) * (stock.quantity || 0) * exchangeRate)}원
+                                {formatNumber((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}원
                               </div>
                               <div className="text-sm text-gray-500">
                                 ${formatNumber((stock.price || 0) * (stock.quantity || 0))}
@@ -298,7 +301,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                           <div className="font-medium text-white">달러 (USD)</div>
                           <div className="text-right">
                             <div className="font-semibold text-white">
-                              {formatNumber(cashUsd * exchangeRate)}원
+                              {formatNumber(cashUsd * effectiveRate)}원
                             </div>
                             <div className="text-sm text-gray-500">
                               ${formatNumber(cashUsd)}

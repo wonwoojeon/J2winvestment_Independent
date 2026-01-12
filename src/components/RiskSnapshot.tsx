@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Wallet, PieChart, Brain, Layers } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { formatKoreanCurrency } from '@/utils/formatters';
+import { getJournalExchangeRate } from '@/utils/exchangeRate';
 
 interface RiskSnapshotProps {
   journal?: InvestmentJournal | null;
@@ -37,11 +38,13 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
     );
   }
 
+  const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
+
   const foreignTotal =
     (journal.foreignStocks || []).reduce(
       (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
       0
-    ) * exchangeRate;
+    ) * effectiveRate;
   const domesticTotal = (journal.domesticStocks || []).reduce(
     (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
     0
@@ -50,10 +53,10 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
     (journal.cryptocurrency || []).reduce(
       (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
       0
-    ) * exchangeRate;
+    ) * effectiveRate;
   const cashKrw = Number(journal.cash?.krw) || 0;
   const cashUsd = Number(journal.cash?.usd) || 0;
-  const cashTotal = cashKrw + cashUsd * exchangeRate;
+  const cashTotal = cashKrw + cashUsd * effectiveRate;
 
   const totalAssets = journal.totalAssets || foreignTotal + domesticTotal + cryptoTotal + cashTotal;
   const cashRatio = totalAssets > 0 ? (cashTotal / totalAssets) * 100 : 0;
