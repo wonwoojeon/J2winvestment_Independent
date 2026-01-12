@@ -162,11 +162,11 @@ export const ScenarioTracker: React.FC = () => {
   return (
     <Card className="bg-slate-900 border-slate-800 shadow-xl">
       <CardHeader className="pb-3 border-b border-slate-800/50">
-        <div className="flex items-center justify-between gap-4">
-          <CardTitle className="text-slate-100 flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-slate-100 flex items-center gap-2 break-keep">
             시나리오 트래커
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -281,8 +281,8 @@ export const ScenarioTracker: React.FC = () => {
             const isExpanded = !!expandedScenarios[scenario.id];
             return (
               <div key={scenario.id} className="bg-slate-950/40 border border-slate-800 rounded-lg p-4 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 w-full">
                     <div
                       className={`text-slate-100 font-semibold ${
                         isExpanded ? 'whitespace-normal break-words' : 'truncate'
@@ -291,7 +291,7 @@ export const ScenarioTracker: React.FC = () => {
                       {scenario.title}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="outline" className={`text-xs ${statusStyles[scenario.status]}`}>
                       {statusLabels[scenario.status]}
                     </Badge>

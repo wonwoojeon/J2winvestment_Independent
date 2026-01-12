@@ -622,7 +622,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                     <Input
                       value={item.text}
                       onChange={(e) => updateChecklistText('bullMarketChecklist', index, e.target.value)}
-                      className="bg-transparent border-0 border-b border-slate-800 rounded-none px-0 focus:ring-0 focus:border-emerald-500 text-sm"
+                      className="bg-transparent border-0 border-b border-slate-800 rounded-none px-0 focus:ring-0 focus:border-emerald-500 text-sm text-slate-100 placeholder:text-slate-500"
                       placeholder="체크리스트 항목 입력"
                     />
                     <Button
@@ -668,7 +668,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                     <Input
                       value={item.text}
                       onChange={(e) => updateChecklistText('bearMarketChecklist', index, e.target.value)}
-                      className="bg-transparent border-0 border-b border-slate-800 rounded-none px-0 focus:ring-0 focus:border-rose-500 text-sm"
+                      className="bg-transparent border-0 border-b border-slate-800 rounded-none px-0 focus:ring-0 focus:border-rose-500 text-sm text-slate-100 placeholder:text-slate-500"
                       placeholder="체크리스트 항목 입력"
                     />
                     <Button

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, PieChart, Brain, Layers } from 'lucide-react';
+import { Wallet, PieChart, Brain, Layers, ChevronDown, ChevronUp } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { formatKoreanCurrency } from '@/utils/formatters';
 import { getJournalExchangeRate } from '@/utils/exchangeRate';
@@ -22,6 +23,8 @@ const getFearGreedLabel = (value: number) => {
 };
 
 export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRate }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!journal) {
     return (
       <Card className="bg-slate-900 border-slate-800 shadow-xl">
@@ -76,12 +79,34 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
   return (
     <Card className="bg-slate-900 border-slate-800 shadow-xl">
       <CardHeader className="pb-3 border-b border-slate-800/50">
-        <CardTitle className="text-slate-100 flex items-center gap-2">
-          <Layers className="h-5 w-5 text-blue-500" />
-          리스크 스냅샷
-        </CardTitle>
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-slate-100 flex items-center gap-2">
+            <Layers className="h-5 w-5 text-blue-500" />
+            리스크 스냅샷
+          </CardTitle>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-slate-300 hover:text-white hover:bg-slate-800"
+            onClick={() => setIsExpanded((prev) => !prev)}
+          >
+            {isExpanded ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-1" />
+                접기
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-1" />
+                펼치기
+              </>
+            )}
+          </Button>
+        </div>
       </CardHeader>
-      <CardContent className="pt-4">
+      {isExpanded && (
+        <CardContent className="pt-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
             <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -135,7 +160,8 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
             </div>
           </div>
         </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 };

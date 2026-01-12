@@ -257,7 +257,11 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
         // utility keeps the tooltip reasonably sized while still allowing
         // shorter content to expand naturally.  The existing `min-w-[180px]`
         // ensures the box doesn't collapse when the content is very small.
-        <div className="bg-slate-900/95 border border-slate-700 rounded-lg p-3 shadow-xl text-xs z-50 min-w-[180px] max-w-xs">
+        <div
+          className="bg-slate-900/95 border border-slate-700 rounded-lg p-3 shadow-xl text-xs z-50 min-w-[180px] max-w-xs"
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
           <p className="text-slate-300 font-semibold mb-2 border-b border-slate-800 pb-1">{label}</p>
           
           <div className="space-y-1.5">
@@ -308,7 +312,12 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
             {isMobile ? (
               <button
                 type="button"
-                onClick={() => onPointClick?.(data.date)}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onPointClick?.(data.date);
+                }}
                 className="text-amber-300 hover:text-amber-200 transition-colors"
               >
                 탭하여 상세 보기
