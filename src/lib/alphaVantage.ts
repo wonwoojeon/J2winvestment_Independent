@@ -1,24 +1,15 @@
 // FRED API 연동 라이브러리 (S&P 500)
-const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY as string | undefined;
-const BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
-const FRED_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
+const BASE_URL = '/api/fred';
 
 const buildFredUrl = (params: Record<string, string>) => {
-  const url = new URL(BASE_URL);
+  const url = new URL(BASE_URL, window.location.origin);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, value);
   });
-  if (FRED_API_KEY) {
-    url.searchParams.set('api_key', FRED_API_KEY);
-  }
-  url.searchParams.set('file_type', 'json');
   return url.toString();
 };
 
-const fetchFred = async (url: string) => {
-  const proxiedUrl = `${FRED_PROXY_BASE}${encodeURIComponent(url)}`;
-  return fetch(proxiedUrl);
-};
+const fetchFred = async (url: string) => fetch(url);
 
 const parseFredJson = async (response: Response) => {
   const text = await response.text();
