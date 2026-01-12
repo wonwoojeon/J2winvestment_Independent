@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Trash2, Brain } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
+import { getImportantMemoTag, getMemoText } from '@/utils/memo';
 
 interface JournalDetailProps {
   journal: InvestmentJournal;
@@ -18,25 +19,17 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
   // 🔥 현재 사용자 정보 상태 추가
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const memoText = getMemoText(journal.memo);
+  const importantTag = getImportantMemoTag(journal.memo);
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
     const getCurrentUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
-      
-      // 일지 작성자와 현재 사용자가 같은지 확인
-      if (user && journal.user_id) {
-        setIsOwner(user.id === journal.user_id);
-      } else if (!user) {
-        // 로그인하지 않은 경우 소유자가 아님
-        setIsOwner(false);
-      } else if (!journal.user_id) {
-        // 일지에 사용자 ID가 없는 경우 (구버전 데이터 등) - 본인 것으로 간주하거나 정책에 따라 결정
-        // 여기서는 안전하게 false로 처리하되, 본인이 작성한 직후에는 true일 수 있음
-        // 하지만 보통 user_id는 필수이므로 이 경우는 드묾
-        setIsOwner(false);
-      }
+      const userId = user?.id;
+      const owner = Boolean(userId && journal.user_id && userId === journal.user_id);
+      setIsOwner(owner);
     };
 
     getCurrentUser();
@@ -49,7 +42,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     trades: !!(journal.trades && journal.trades.trim().length > 0), // 내용이 있으면 펼쳐진 상태
     psychology: true,
     checklists: true,
-    memo: !!(journal.memo && journal.memo.trim().length > 0) || !!(journal.marketIssues && journal.marketIssues.trim().length > 0) // 내용이 있으면 펼쳐진 상태
+    memo: !!memoText || !!(journal.marketIssues && journal.marketIssues.trim().length > 0) // 내용이 있으면 펼쳐진 상태
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -131,7 +124,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6 bg-gray-900 text-white min-h-screen">
       {/* 🔥 헤더 - 작성자만 수정/삭제 버튼 표시 */}
-      <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={onBack} className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -140,26 +133,25 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
           <h1 className="text-2xl font-bold">{journal.date} 투자일지</h1>
         </div>
         {/* 🔥 작성자만 수정/삭제 버튼 표시 */}
-        {isOwner && (
-          <div className="flex items-center gap-2">
-            <Button 
-              onClick={handleDelete} 
-              variant="outline"
-              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              삭제
-            </Button>
-            <Button onClick={onEdit} className="bg-blue-600 hover:bg-blue-700">
-              <Edit className="h-4 w-4 mr-2" />
-              수정
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <Button 
+            onClick={handleDelete} 
+            variant="outline"
+            disabled={!isOwner}
+            className={`border-red-500 text-red-500 hover:bg-red-500 hover:text-white ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            삭제
+          </Button>
+          <Button onClick={onEdit} disabled={!isOwner} className={`bg-blue-600 hover:bg-blue-700 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
+            <Edit className="h-4 w-4 mr-2" />
+            수정
+          </Button>
+        </div>
       </div>
 
       {/* 🔥 다른 사람의 일지일 때 안내 메시지 표시 - 본인이 작성한 일지일때는 표시 안함 */}
-      {!isOwner && currentUser && journal.user_id !== currentUser.id && (
+      {!isOwner && currentUser && journal.user_id && journal.user_id !== currentUser.id && (
         <Card className="bg-yellow-900/20 border-yellow-500/30">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-yellow-400 mb-2">
@@ -407,7 +399,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bullMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-gray-300">
+                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
@@ -428,7 +420,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bearMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-gray-300">
+                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
@@ -446,7 +438,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
       )}
 
       {/* 🔥 시장 이슈 및 메모 - 모든 삭제 버튼 제거 */}
-      {(journal.marketIssues || journal.memo) && (
+      {(journal.marketIssues || memoText) && (
         <Card className="bg-gray-800 border-0 shadow-md rounded-lg overflow-hidden">
           <CardHeader className="cursor-pointer bg-gray-700 p-4" onClick={() => toggleSection('memo')}>
             <CardTitle className="flex items-center justify-between text-lg font-semibold text-white">
@@ -469,11 +461,14 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                   </div>
                 )}
 
-                {journal.memo && (
+                {memoText && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">투자 메모</h3>
                     <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
-                      {journal.memo}
+                      {importantTag && (
+                        <div className="text-amber-300 font-semibold mb-2">#{importantTag}</div>
+                      )}
+                      {memoText}
                     </div>
                   </div>
                 )}

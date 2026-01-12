@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, TrendingUp, Eye, Edit, Trash2, Brain } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
+import { getMemoPreview, getMemoText, hasImportantMemo } from '@/utils/memo';
 
 interface JournalListProps {
   journals: InvestmentJournal[];
@@ -54,8 +55,15 @@ export const JournalList: React.FC<JournalListProps> = ({
                   </span>
                   
                   {/* 메모 표시 */}
-                  {journal.memo && (
-                    <Badge variant="outline" className="border-red-500 text-red-400 text-xs">
+                  {getMemoText(journal.memo) && (
+                    <Badge
+                      variant="outline"
+                      className={`text-xs ${
+                        hasImportantMemo(journal.memo)
+                          ? 'border-amber-500 text-amber-400'
+                          : 'border-red-500 text-red-400'
+                      }`}
+                    >
                       메모
                     </Badge>
                   )}
@@ -85,11 +93,10 @@ export const JournalList: React.FC<JournalListProps> = ({
                 </div>
 
                 {/* 메모 미리보기 */}
-                {journal.memo && (
+                {getMemoText(journal.memo) && (
                   <div className="bg-gray-700 p-3 rounded text-xs text-gray-300 mb-2">
                     <p className="line-clamp-2">
-                      {journal.memo.substring(0, 100)}
-                      {journal.memo.length > 100 && '...'}
+                      {getMemoPreview(journal.memo, 100)}
                     </p>
                   </div>
                 )}

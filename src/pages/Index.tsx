@@ -10,6 +10,7 @@ import { BibleVerseTicker } from '../components/BibleVerseTicker';
 import AssetChangeChart from '../components/AssetChangeChart';
 import { MemoList } from '../components/MemoList';
 import { InvestmentJournal, PublicJournalSearchResult } from '../types/investment';
+import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -233,6 +234,7 @@ function Index() {
       
       const convertedJournals = (data || []).map(journal => ({
         id: journal.id,
+        user_id: journal.user_id,
         date: journal.date || new Date().toISOString().split('T')[0],
         totalAssets: journal.total_assets || 0,
         evaluation: journal.evaluation || 0,
@@ -245,7 +247,7 @@ function Index() {
         bullMarketChecklist: Array.isArray(journal.bull_market_checklist) ? journal.bull_market_checklist : [],
         bearMarketChecklist: Array.isArray(journal.bear_market_checklist) ? journal.bear_market_checklist : [],
         marketIssues: journal.market_issues || '',
-        memo: journal.memo || ''
+        memo: journal.memo ?? ''
       }));
       
       setJournals(convertedJournals);
@@ -317,7 +319,9 @@ function Index() {
       const { error } = await supabase
         .from('investment_journals')
         .update({ 
-          memo: '',
+          memo: [],
+          has_important_memo: false,
+          important_tag: null,
           updated_at: new Date().toISOString()
         })
         .eq('id', journalId)
@@ -328,7 +332,7 @@ function Index() {
       await loadJournals();
       
       if (selectedJournal && selectedJournal.id === journalId) {
-        setSelectedJournal(prev => prev ? { ...prev, memo: '' } : null);
+        setSelectedJournal(prev => prev ? { ...prev, memo: [] } : null);
       }
       
       alert('메모가 성공적으로 삭제되었습니다.');
@@ -343,6 +347,7 @@ function Index() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      const memoEntries = normalizeMemoEntries(journal.memo);
       const journalData = {
         user_id: user.id,
         date: journal.date,
@@ -357,7 +362,9 @@ function Index() {
         bull_market_checklist: journal.bullMarketChecklist || [],
         bear_market_checklist: journal.bearMarketChecklist || [],
         market_issues: journal.marketIssues || '',
-        memo: journal.memo || '',
+        memo: memoEntries,
+        has_important_memo: hasImportantMemo(memoEntries),
+        important_tag: getImportantMemoTag(memoEntries) || null,
         is_public: false,
         updated_at: new Date().toISOString()
       };
@@ -790,9 +797,9 @@ function Index() {
                           <span className="font-mono">{formatKoreanCurrency(journal.totalAssets || 0)}</span>
                         </div>
 
-                        {(journal.memo || journal.marketIssues) && (
+                        {(getMemoText(journal.memo) || journal.marketIssues) && (
                           <p className="text-sm text-slate-500 line-clamp-1">
-                            {journal.memo || journal.marketIssues}
+                            {getMemoText(journal.memo) || journal.marketIssues}
                           </p>
                         )}
                       </div>

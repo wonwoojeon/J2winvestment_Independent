@@ -7,6 +7,9 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { fetchSP500Data, SP500Data, checkAPIUsage } from '@/lib/alphaVantage';
 import { TrendingUp, TrendingDown, Activity, RefreshCw, BarChart3, Eye, EyeOff, Info } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { MemoEntry } from '@/types/investment';
+import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 
 // 통화 포맷팅 함수
 const formatKoreanCurrency = (amount: number): string => {
@@ -42,7 +45,7 @@ interface ChartData {
   assetPercentage: number;
   sp500Percentage: number;
   sp500Price?: number; // 원본 S&P 500 가격 저장
-  memo?: string;
+  memo?: MemoEntry[] | string | null;
   marketIssues?: string;
 }
 
@@ -54,10 +57,13 @@ interface AssetChangeChartProps {
 // 커스텀 닷 컴포넌트: 메모나 이슈가 있는 날은 빨간 점으로 표시
 const CustomizedDot = (props: any) => {
   const { cx, cy, payload } = props;
+  const memoEntries = normalizeMemoEntries(payload.memo);
+  const hasMemo = memoEntries.length > 0 || Boolean(payload.marketIssues);
 
-  if (payload.memo || payload.marketIssues) {
+  if (hasMemo) {
+    const fillColor = hasImportantMemo(payload.memo) ? '#f7b500' : '#ef4444';
     return (
-      <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill="#ef4444" />
+      <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill={fillColor} />
     );
   }
   
@@ -73,6 +79,9 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
   const [showSP500, setShowSP500] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState<'all' | '1y' | '3y'>('all');
+  const isMobile = useIsMobile();
+  const [activeTooltip, setActiveTooltip] = useState<ChartData | null>(null);
+  const [activeTooltipLabel, setActiveTooltipLabel] = useState<string>('');
 
   useEffect(() => {
     loadChartData();
@@ -148,7 +157,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
         assets: journal.total_assets || 0,
         assetPercentage: 0,
         sp500Percentage: 0,
-        memo: journal.memo || '',
+        memo: journal.memo || [],
         marketIssues: journal.market_issues || ''
       }));
 
@@ -204,17 +213,39 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
   const handleChartClick = (event: any) => {
     if (event && event.activePayload && event.activePayload.length > 0) {
       const clickedData = event.activePayload[0].payload;
-      if (onPointClick && clickedData && clickedData.date) {
+      if (!clickedData || !clickedData.date) return;
+      if (isMobile) {
+        if (activeTooltip?.date === clickedData.date) {
+          setActiveTooltip(null);
+          setActiveTooltipLabel('');
+          return;
+        }
+        setActiveTooltip(clickedData);
+        setActiveTooltipLabel(clickedData.date);
+        return;
+      }
+      if (onPointClick) {
         onPointClick(clickedData.date);
       }
+    } else if (isMobile) {
+      setActiveTooltip(null);
+      setActiveTooltipLabel('');
     }
   };
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      const memoText = getMemoText(data.memo);
+      const importantTag = getImportantMemoTag(data.memo);
       return (
-        <div className="bg-slate-900/95 border border-slate-700 rounded-lg p-3 shadow-xl text-xs z-50 min-w-[180px]">
+        // Restrict the maximum width of the tooltip to prevent it from overflowing
+        // the viewport.  Without this constraint long memos could cause the
+        // tooltip box to stretch across the page.  Tailwind's `max-w-xs` (20rem)
+        // utility keeps the tooltip reasonably sized while still allowing
+        // shorter content to expand naturally.  The existing `min-w-[180px]`
+        // ensures the box doesn't collapse when the content is very small.
+        <div className="bg-slate-900/95 border border-slate-700 rounded-lg p-3 shadow-xl text-xs z-50 min-w-[180px] max-w-xs">
           <p className="text-slate-300 font-semibold mb-2 border-b border-slate-800 pb-1">{label}</p>
           
           <div className="space-y-1.5">
@@ -247,19 +278,32 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
             )}
           </div>
 
-          {(data.memo || data.marketIssues) && (
+          {(memoText || data.marketIssues) && (
             <div className="mt-2 pt-2 border-t border-slate-700">
+              {importantTag && (
+                <p className="text-amber-300 font-semibold mb-1">#{importantTag}</p>
+              )}
               <div className="flex items-start gap-1.5 text-slate-300">
                 <span className="text-xs mt-0.5">📝</span>
-                <span className="line-clamp-2 text-slate-400 leading-relaxed">
-                  {data.memo || data.marketIssues}
+                <span className="text-slate-400 leading-relaxed max-w-xs whitespace-pre-wrap break-words">
+                  {memoText || data.marketIssues}
                 </span>
               </div>
             </div>
           )}
           
           <div className="mt-2 text-[10px] text-slate-600 text-center">
-            클릭하여 상세 보기
+            {isMobile ? (
+              <button
+                type="button"
+                onClick={() => onPointClick?.(data.date)}
+                className="text-amber-300 hover:text-amber-200 transition-colors"
+              >
+                탭하여 상세 보기
+              </button>
+            ) : (
+              '클릭하여 상세 보기'
+            )}
           </div>
         </div>
       );
@@ -426,7 +470,13 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }} />
+              <Tooltip
+                content={<CustomTooltip />}
+                cursor={{ stroke: '#475569', strokeWidth: 1, strokeDasharray: '4 4' }}
+                active={isMobile ? Boolean(activeTooltip) : undefined}
+                payload={isMobile && activeTooltip ? [{ payload: activeTooltip }] : undefined}
+                label={isMobile ? activeTooltipLabel : undefined}
+              />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
               <Area

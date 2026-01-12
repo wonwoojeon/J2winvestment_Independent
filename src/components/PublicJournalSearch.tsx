@@ -63,7 +63,7 @@ export interface PublicJournalSearchResult {
   bull_market_checklist: string[];
   bear_market_checklist: string[];
   market_issues: string;
-  memo: string;
+  memo: unknown;
   user_profile: {
     nickname: string;
     bio: string;

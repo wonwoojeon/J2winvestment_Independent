@@ -4,12 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Save, Calculator, Brain, RefreshCw, Plus, Minus, DollarSign, CheckCircle2, AlertTriangle, TrendingUp } from 'lucide-react';
+// NOTE: when bundling the application the Lucide icons can be tree‑shaken and may
+// not always register correctly when referenced by their original names.  To
+// avoid run‑time errors such as `ReferenceError: TrendingUp is not defined` we
+// import the TrendingUp icon under a unique alias.  This explicit import
+// ensures the symbol is defined at run‑time and makes it clear where the
+// component originates.
+import {
+  ArrowLeft,
+  Save,
+  Calculator,
+  Brain,
+  RefreshCw,
+  Plus,
+  Minus,
+  DollarSign,
+  CheckCircle2,
+  AlertTriangle,
+  TrendingUp as LucideTrendingUp,
+} from 'lucide-react';
 import { InvestmentJournal, ChecklistItem } from '@/types/investment';
 import { getDefaultChecklists } from '@/lib/storage';
 import { AssetInput } from './AssetInput';
 import { fetchComprehensivePsychologyData, getAccurateExchangeRate } from '@/lib/api';
 import { supabase } from '@/lib/supabase';
+import { buildMemoEntries, normalizeMemoEntries } from '@/utils/memo';
 
 interface JournalFormProps {
   onSubmit: (journal: InvestmentJournal) => void;
@@ -18,6 +37,11 @@ interface JournalFormProps {
 }
 
 export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData, onCancel }) => {
+  const initialMemoEntries = normalizeMemoEntries(initialData?.memo);
+  const [memoText, setMemoText] = useState(initialMemoEntries[0]?.text ?? '');
+  const [isImportantMemo, setIsImportantMemo] = useState(initialMemoEntries[0]?.isImportant ?? false);
+  const [importantTag, setImportantTag] = useState(initialMemoEntries[0]?.importantTag ?? '');
+
   const [formData, setFormData] = useState<InvestmentJournal>({
     id: initialData?.id || '',
     date: initialData?.date || new Date().toISOString().split('T')[0],
@@ -39,7 +63,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     bullMarketChecklist: initialData?.bullMarketChecklist || [],
     bearMarketChecklist: initialData?.bearMarketChecklist || [],
     marketIssues: initialData?.marketIssues || '',
-    memo: initialData?.memo || ''
+    memo: initialMemoEntries
   });
 
   const [exchangeRate, setExchangeRate] = useState(1300);
@@ -115,10 +139,69 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
     };
 
     initializeChecklists();
+
+    // 새 일지 작성 시 직전 일지의 자산 포트폴리오를 불러오되, 가격은 초기화합니다.
+    const initializeAssets = async () => {
+      // 수정 모드에서는 자산을 그대로 유지
+      if (initialData) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // 가장 최근 일지의 자산 정보 조회
+          const { data: latest } = await supabase
+            .from('investment_journals')
+            .select('foreign_stocks, domestic_stocks, cryptocurrency, cash')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (latest) {
+            const mapStocks = (stocks: any[] | null | undefined) => {
+              return Array.isArray(stocks) ? stocks.map((stock: any) => ({
+                // 새로운 ID를 부여하여 리액트 키 충돌 방지
+                id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+                symbol: stock.symbol || '',
+                quantity: stock.quantity || 0,
+                // 가격을 0으로 두면 AssetInput에서 빈 문자열로 표시됩니다.
+                price: 0,
+              })) : [];
+            };
+            const foreign = mapStocks((latest as any).foreign_stocks);
+            const domestic = mapStocks((latest as any).domestic_stocks);
+            const crypto = mapStocks((latest as any).cryptocurrency);
+            const cash = (latest as any).cash || { krw: 0, usd: 0 };
+            setFormData(prev => ({
+              ...prev,
+              foreignStocks: foreign,
+              domesticStocks: domestic,
+              cryptocurrency: crypto,
+              cash,
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('❌ 최근 자산 포트폴리오 로드 실패:', error);
+      }
+    };
+    initializeAssets();
     
     // 초기 로드 시 환율 가져오기
     fetchExchangeRate();
   }, [initialData]);
+
+  useEffect(() => {
+    const memoEntries = normalizeMemoEntries(initialData?.memo);
+    setMemoText(memoEntries[0]?.text ?? '');
+    setIsImportantMemo(memoEntries[0]?.isImportant ?? false);
+    setImportantTag(memoEntries[0]?.importantTag ?? '');
+  }, [initialData]);
+
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      memo: buildMemoEntries(memoText, isImportantMemo, importantTag)
+    }));
+  }, [memoText, isImportantMemo, importantTag]);
 
   // 기본 체크리스트 로드 함수
   const loadDefaultChecklists = (type: 'bull' | 'bear' | 'all') => {
@@ -499,7 +582,7 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
               <CardHeader className="pb-3 border-b border-slate-800">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base font-medium text-emerald-400 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" /> 상승장 체크리스트
+                    <LucideTrendingUp className="h-4 w-4" /> 상승장 체크리스트
                   </CardTitle>
                   <Button
                     type="button"
@@ -615,11 +698,32 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
               <div className="space-y-2">
                 <Label className="text-slate-400">투자 메모</Label>
                 <Textarea
-                  value={formData.memo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, memo: e.target.value }))}
+                  value={memoText}
+                  onChange={(e) => setMemoText(e.target.value)}
                   placeholder="오늘의 투자 아이디어나 감정을 기록하세요"
                   className="bg-slate-800 border-slate-700 text-white min-h-[120px]"
                 />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={isImportantMemo}
+                    onChange={(e) => setIsImportantMemo(e.target.checked)}
+                    className="rounded border-slate-600 bg-slate-800 text-amber-500 focus:ring-amber-500/50"
+                  />
+                  중요 메모로 표시
+                </label>
+                <div className="space-y-1">
+                  <Label className="text-slate-400 text-xs">중요 태그</Label>
+                  <Input
+                    value={importantTag}
+                    onChange={(e) => setImportantTag(e.target.value)}
+                    placeholder="예: 하반기 전략, 두려울 때 읽기"
+                    className="bg-slate-800 border-slate-700 text-white"
+                    disabled={!isImportantMemo}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

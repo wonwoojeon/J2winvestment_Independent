@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MessageSquare, ArrowLeft, Calendar, Quote } from 'lucide-react';
 import { InvestmentJournal } from '../types/investment';
+import { getImportantMemoTag, getMemoText } from '@/utils/memo';
 
 interface MemoListProps {
   journals: InvestmentJournal[];
@@ -13,7 +14,7 @@ interface MemoListProps {
 
 export const MemoList: React.FC<MemoListProps> = ({ journals, onBack, onJournalClick }) => {
   // 메모나 시장 이슈가 있는 일지만 필터링
-  const memoJournals = journals.filter(j => j.memo || j.marketIssues);
+  const memoJournals = journals.filter(j => getMemoText(j.memo) || j.marketIssues);
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -49,7 +50,10 @@ export const MemoList: React.FC<MemoListProps> = ({ journals, onBack, onJournalC
                   <p>작성된 메모가 없습니다.</p>
                 </div>
               ) : (
-                memoJournals.map((journal) => (
+                memoJournals.map((journal) => {
+                  const memoText = getMemoText(journal.memo);
+                  const importantTag = getImportantMemoTag(journal.memo);
+                  return (
                   <div 
                     key={journal.id} 
                     className="p-6 hover:bg-slate-800/30 transition-colors cursor-pointer group"
@@ -71,20 +75,23 @@ export const MemoList: React.FC<MemoListProps> = ({ journals, onBack, onJournalC
                     </div>
                     
                     <div className="grid gap-4 md:grid-cols-2">
-                      {journal.memo && (
+                      {memoText && (
                         <div className={`bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 hover:border-blue-500/20 transition-colors ${!journal.marketIssues ? 'md:col-span-2' : ''}`}>
                           <div className="flex items-center gap-2 mb-3">
                             <Quote className="h-4 w-4 text-blue-500 opacity-50" />
                             <span className="text-xs font-bold text-blue-400 uppercase tracking-wider">My Memo</span>
                           </div>
+                          {importantTag && (
+                            <div className="text-amber-300 text-xs font-semibold mb-2">#{importantTag}</div>
+                          )}
                           <p className="text-slate-300 whitespace-pre-wrap leading-relaxed text-sm">
-                            {journal.memo}
+                            {memoText}
                           </p>
                         </div>
                       )}
                       
                       {journal.marketIssues && (
-                        <div className={`bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 hover:border-amber-500/20 transition-colors ${!journal.memo ? 'md:col-span-2' : ''}`}>
+                        <div className={`bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 hover:border-amber-500/20 transition-colors ${!memoText ? 'md:col-span-2' : ''}`}>
                           <div className="flex items-center gap-2 mb-3">
                             <Quote className="h-4 w-4 text-amber-500 opacity-50" />
                             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">Market Issues</span>
@@ -96,7 +103,8 @@ export const MemoList: React.FC<MemoListProps> = ({ journals, onBack, onJournalC
                       )}
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </ScrollArea>

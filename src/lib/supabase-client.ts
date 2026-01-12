@@ -1,4 +1,6 @@
 import { supabase } from './supabase';
+import type { MemoEntry } from '@/types/investment';
+import { getImportantMemoTag, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 
 export interface InvestmentJournal {
   id?: string;
@@ -10,7 +12,7 @@ export interface InvestmentJournal {
   stockAssets: number;
   bondAssets: number;
   etcAssets: number;
-  memo?: string;
+  memo?: MemoEntry[] | string | null;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -99,6 +101,7 @@ export const getUserProfile = async (userId: string): Promise<UserProfile | null
 // 투자일지 관련 함수들
 export const saveJournal = async (userId: string, journal: Omit<InvestmentJournal, 'id' | 'userId'>): Promise<string> => {
   try {
+    const memoEntries = normalizeMemoEntries(journal.memo);
     const journalData = {
       user_id: userId,
       date: journal.date,
@@ -108,7 +111,9 @@ export const saveJournal = async (userId: string, journal: Omit<InvestmentJourna
       stock_assets: toSafeInteger(journal.stockAssets || 0),
       bond_assets: toSafeInteger(journal.bondAssets || 0),
       etc_assets: toSafeInteger(journal.etcAssets || 0),
-      memo: journal.memo || null,
+      memo: memoEntries.length ? memoEntries : null,
+      has_important_memo: hasImportantMemo(memoEntries),
+      important_tag: getImportantMemoTag(memoEntries) || null,
       updated_at: new Date().toISOString()
     };
 
@@ -148,7 +153,12 @@ export const updateJournal = async (journalId: string, updates: Partial<Investme
     if (updates.stockAssets !== undefined) updateData.stock_assets = toSafeInteger(updates.stockAssets);
     if (updates.bondAssets !== undefined) updateData.bond_assets = toSafeInteger(updates.bondAssets);
     if (updates.etcAssets !== undefined) updateData.etc_assets = toSafeInteger(updates.etcAssets);
-    if (updates.memo !== undefined) updateData.memo = updates.memo || null;
+    if (updates.memo !== undefined) {
+      const memoEntries = normalizeMemoEntries(updates.memo);
+      updateData.memo = memoEntries.length ? memoEntries : null;
+      updateData.has_important_memo = hasImportantMemo(memoEntries);
+      updateData.important_tag = getImportantMemoTag(memoEntries) || null;
+    }
     if (updates.date !== undefined) updateData.date = updates.date;
 
     console.log('업데이트할 일지 데이터 (정수 변환됨):', updateData);

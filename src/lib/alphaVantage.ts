@@ -1,5 +1,5 @@
 // Alpha Vantage API 연동 라이브러리
-const ALPHA_VANTAGE_API_KEY = '9TXNZT3UEY96AJM2';
+const ALPHA_VANTAGE_API_KEY = import.meta.env.VITE_ALPHA_API_KEY as string | undefined;
 const BASE_URL = 'https://www.alphavantage.co/query';
 
 export interface SP500Data {
@@ -12,32 +12,48 @@ export interface SP500Data {
 }
 
 export interface AlphaVantageResponse {
-  'Meta Data': {
-    '1. Information': string;
-    '2. Symbol': string;
-    '3. Last Refreshed': string;
-    '4. Output Size': string;
-    '5. Time Zone': string;
+  'Meta Data'?: {
+    '1. Information'?: string;
+    '2. Symbol'?: string;
+    '3. Last Refreshed'?: string;
+    '4. Output Size'?: string;
+    '5. Time Zone'?: string;
   };
-  'Time Series (Daily)': {
-    [date: string]: {
+  'Monthly Adjusted Time Series'?: Record<
+    string,
+    {
+      '1. open': string;
+      '2. high': string;
+      '3. low': string;
+      '4. close': string;
+      '5. adjusted close'?: string;
+      '6. volume': string;
+    }
+  >;
+  'Monthly Time Series'?: Record<
+    string,
+    {
       '1. open': string;
       '2. high': string;
       '3. low': string;
       '4. close': string;
       '5. volume': string;
-    };
-  };
+    }
+  >;
+  'Error Message'?: string;
+  'Note'?: string;
 }
 
 /**
  * S&P 500 ETF (SPY) 데이터를 가져옵니다
  */
-export const fetchSP500Data = async (outputSize: 'compact' | 'full' = 'compact'): Promise<SP500Data[]> => {
+export const fetchSP500Data = async (_outputSize: 'compact' | 'full' = 'compact'): Promise<SP500Data[]> => {
   try {
     console.log('📊 Alpha Vantage API 호출 시작 - S&P 500 데이터');
-    
-    const url = `${BASE_URL}?function=TIME_SERIES_DAILY&symbol=SPY&outputsize=${outputSize}&apikey=${ALPHA_VANTAGE_API_KEY}`;
+    if (!ALPHA_VANTAGE_API_KEY) {
+      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    }
+    const url = `${BASE_URL}?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`;
     
     const response = await fetch(url);
     
@@ -56,20 +72,20 @@ export const fetchSP500Data = async (outputSize: 'compact' | 'full' = 'compact')
       throw new Error(`Alpha Vantage API Limit: ${data['Note']}`);
     }
     
-    if (!data['Time Series (Daily)']) {
+    const timeSeries = data['Monthly Adjusted Time Series'] || data['Monthly Time Series'];
+    if (!timeSeries) {
       throw new Error('Invalid response format from Alpha Vantage API');
     }
     
     // 데이터 변환
-    const timeSeriesData = data['Time Series (Daily)'];
-    const sp500Data: SP500Data[] = Object.entries(timeSeriesData)
+    const sp500Data: SP500Data[] = Object.entries(timeSeries)
       .map(([date, values]) => ({
         date,
         open: parseFloat(values['1. open']),
         high: parseFloat(values['2. high']),
         low: parseFloat(values['3. low']),
-        close: parseFloat(values['4. close']),
-        volume: parseInt(values['5. volume'])
+        close: parseFloat(values['5. adjusted close'] ?? values['4. close']),
+        volume: parseInt(values['6. volume'] ?? values['5. volume'])
       }))
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // 날짜 오름차순 정렬
     

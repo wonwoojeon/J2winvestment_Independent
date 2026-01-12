@@ -1,5 +1,5 @@
 // Alpha Vantage API 연동 라이브러리
-const ALPHA_VANTAGE_API_KEY = '9TXNZT3UEY96AJM2';
+const ALPHA_VANTAGE_API_KEY = import.meta.env.VITE_ALPHA_API_KEY as string | undefined;
 const BASE_URL = 'https://www.alphavantage.co/query';
 
 export interface SP500Data {
@@ -12,6 +12,9 @@ export interface SP500Data {
 // S&P 500 일일 데이터 가져오기 (SPY ETF 사용)
 export const fetchSP500DailyData = async (): Promise<SP500Data[]> => {
   try {
+    if (!ALPHA_VANTAGE_API_KEY) {
+      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    }
     const response = await fetch(
       `${BASE_URL}?function=TIME_SERIES_DAILY&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
@@ -74,6 +77,9 @@ export const fetchSP500DailyData = async (): Promise<SP500Data[]> => {
 // S&P 500 실시간 가격 가져오기
 export const fetchSP500RealTimePrice = async (): Promise<{ price: number; change: number; changePercent: number } | null> => {
   try {
+    if (!ALPHA_VANTAGE_API_KEY) {
+      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    }
     const response = await fetch(
       `${BASE_URL}?function=GLOBAL_QUOTE&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
@@ -112,6 +118,9 @@ export const fetchSP500RealTimePrice = async (): Promise<{ price: number; change
 // 월간 S&P 500 데이터 가져오기
 export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
   try {
+    if (!ALPHA_VANTAGE_API_KEY) {
+      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    }
     const response = await fetch(
       `${BASE_URL}?function=TIME_SERIES_MONTHLY&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`
     );
@@ -174,6 +183,9 @@ export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
 // API 호출 제한 확인
 export const checkApiLimit = async (): Promise<boolean> => {
   try {
+    if (!ALPHA_VANTAGE_API_KEY) {
+      throw new Error('VITE_ALPHA_API_KEY가 설정되지 않았습니다.');
+    }
     const response = await fetch(
       `${BASE_URL}?function=GLOBAL_QUOTE&symbol=SPY&apikey=${ALPHA_VANTAGE_API_KEY}`
     );

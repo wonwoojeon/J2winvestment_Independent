@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { InvestmentJournal, UserProfile, PublicJournalSearchResult } from '@/types/investment';
+import { getImportantMemoTag, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 
 // 🔥 사용자 프로필 관련 함수들 - avatar_url 제거
 export async function createUserProfile(userId: string, profileData: Partial<UserProfile>): Promise<UserProfile | null> {
@@ -113,6 +114,7 @@ export async function searchPublicJournals(nickname: string): Promise<PublicJour
     const results: PublicJournalSearchResult[] = filteredData.map(item => ({
       journal: {
         id: item.id,
+        user_id: item.user_id,
         date: item.date,
         totalAssets: item.total_assets,
         evaluation: item.evaluation || 0,
@@ -162,6 +164,7 @@ export async function saveJournalToSupabase(journal: InvestmentJournal): Promise
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('사용자 인증이 필요합니다');
 
+    const memoEntries = normalizeMemoEntries(journal.memo);
     const journalData = {
       id: journal.id,
       user_id: user.id,
@@ -177,7 +180,9 @@ export async function saveJournalToSupabase(journal: InvestmentJournal): Promise
       bull_market_checklist: journal.bullMarketChecklist,
       bear_market_checklist: journal.bearMarketChecklist,
       market_issues: journal.marketIssues,
-      memo: journal.memo,
+      memo: memoEntries,
+      has_important_memo: hasImportantMemo(memoEntries),
+      important_tag: getImportantMemoTag(memoEntries) || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
@@ -209,6 +214,7 @@ export async function getJournalsFromSupabase(): Promise<InvestmentJournal[]> {
 
     return (data || []).map(item => ({
       id: item.id,
+      user_id: item.user_id,
       date: item.date,
       totalAssets: item.total_assets,
       evaluation: item.evaluation || 0,

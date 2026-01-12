@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Calendar, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Brain, Eye } from 'lucide-react';
 import { PublicJournalSearchResult } from '@/types/investment';
+import { getImportantMemoTag, getMemoText } from '@/utils/memo';
 
 interface PublicJournalDetailProps {
   result: PublicJournalSearchResult;
@@ -17,6 +18,8 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
   exchangeRate 
 }) => {
   const { journal, user_profile } = result;
+  const memoText = getMemoText(journal.memo);
+  const importantTag = getImportantMemoTag(journal.memo);
   
   const [expandedSections, setExpandedSections] = useState({
     assets: true,
@@ -24,7 +27,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
     trades: !!(journal.trades && journal.trades.trim().length > 0),
     psychology: true,
     checklists: true,
-    memo: !!(journal.memo && journal.memo.trim().length > 0) || !!(journal.marketIssues && journal.marketIssues.trim().length > 0)
+    memo: !!memoText || !!(journal.marketIssues && journal.marketIssues.trim().length > 0)
   });
 
   const toggleSection = (section: keyof typeof expandedSections) => {
@@ -338,7 +341,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bullMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-gray-300">
+                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
@@ -358,7 +361,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bearMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-gray-300">
+                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
@@ -376,7 +379,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
       )}
 
       {/* 시장 이슈 및 메모 */}
-      {(journal.marketIssues || journal.memo) && (
+      {(journal.marketIssues || memoText) && (
         <Card className="bg-gray-800 border-0 shadow-md rounded-lg overflow-hidden">
           <CardHeader className="cursor-pointer bg-gray-700 p-4" onClick={() => toggleSection('memo')}>
             <CardTitle className="flex items-center justify-between text-lg font-semibold text-white">
@@ -399,11 +402,14 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
                   </div>
                 )}
 
-                {journal.memo && (
+                {memoText && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">투자 메모</h3>
                     <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
-                      {journal.memo}
+                      {importantTag && (
+                        <div className="text-amber-300 font-semibold mb-2">#{importantTag}</div>
+                      )}
+                      {memoText}
                     </div>
                   </div>
                 )}

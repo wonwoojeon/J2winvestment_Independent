@@ -25,8 +25,15 @@ export interface ChecklistItem {
   checked: boolean;
 }
 
+export interface MemoEntry {
+  text: string;
+  isImportant?: boolean;
+  importantTag?: string;
+}
+
 export interface InvestmentJournal {
   id: string;
+  user_id?: string;
   date: string;
   totalAssets: number;
   evaluation: number;
@@ -39,7 +46,7 @@ export interface InvestmentJournal {
   bullMarketChecklist: ChecklistItem[];
   bearMarketChecklist: ChecklistItem[];
   marketIssues?: string;
-  memo?: string;
+  memo?: MemoEntry[] | string | null;
 }
 
 // 🔥 사용자 프로필 인터페이스 추가

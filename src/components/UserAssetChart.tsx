@@ -6,8 +6,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, TrendingUp, User, ArrowLeft, Eye, BarChart3, Filter } from 'lucide-react';
-import { PublicJournalSearchResult, InvestmentJournal } from '@/types/investment';
+import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
+import { getMemoPreview, getMemoText, hasImportantMemo } from '@/utils/memo';
+import { checkAPIUsage, fetchSP500Data } from '@/lib/alphaVantage';
 
 interface UserAssetChartProps {
   userProfile: any;
@@ -53,6 +55,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
 
       const journals: InvestmentJournal[] = (data || []).map(item => ({
         id: item.id,
+        user_id: item.user_id,
         date: item.date,
         totalAssets: item.total_assets || 0,
         evaluation: item.evaluation || 0,
@@ -65,7 +68,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
         bullMarketChecklist: item.bull_market_checklist || [],
         bearMarketChecklist: item.bear_market_checklist || [],
         marketIssues: item.market_issues || '',
-        memo: item.memo || ''
+        memo: item.memo ?? ''
       }));
 
       setUserJournals(journals);
@@ -82,7 +85,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
             date: journal.date,
             totalAssets: journal.totalAssets,
             changePercent: changePercent,
-            hasMemo: !!journal.memo,
+            hasMemo: !!getMemoText(journal.memo),
             journal: journal,
             displayDate: new Date(journal.date).toLocaleDateString('ko-KR', {
               month: 'short',
@@ -106,34 +109,27 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
   const loadSP500Data = async () => {
     try {
       console.log('📈 실제 S&P 500 데이터 로드 시작');
-      
-      // Alpha Vantage API 키 (실제 사용시 환경변수로 관리)
-      const API_KEY = 'demo'; // 데모용, 실제로는 API 키가 필요
-      const symbol = 'SPY'; // S&P 500 ETF
-      
-      // 실제 API 호출 (현재는 데모용으로 시뮬레이션)
-      // const response = await fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${API_KEY}`);
-      // const data = await response.json();
-      
-      // 시뮬레이션 데이터 (실제 API 연동시 위 코드 사용)
-      const sp500SimData: {[key: string]: number} = {};
-      const startDate = new Date(chartData[0].date);
-      
-      chartData.forEach((point, index) => {
-        // 실제 S&P 500의 연평균 수익률 약 10%를 기반으로 시뮬레이션
-        const daysSinceStart = (new Date(point.date).getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
-        const yearsSinceStart = daysSinceStart / 365;
-        const annualReturn = 0.10; // 10% 연평균
-        const volatility = 0.16; // 16% 변동성
-        
-        // 시장의 실제 변동성을 반영한 랜덤 요소
-        const randomFactor = (Math.random() - 0.5) * volatility * Math.sqrt(yearsSinceStart);
-        const sp500Return = (annualReturn * yearsSinceStart + randomFactor) * 100;
-        
-        sp500SimData[point.date] = Math.max(-50, Math.min(100, sp500Return)); // -50% ~ 100% 범위 제한
+      if (!chartData.length) return;
+      checkAPIUsage();
+      const sp500RawData = await fetchSP500Data('compact');
+      const sorted = [...sp500RawData].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      const basePoint = chartData[0];
+      const baseItem = sorted.find(item => item.date <= basePoint.date);
+      if (!baseItem) {
+        setSP500Data({});
+        return;
+      }
+      const basePrice = baseItem.close;
+      const sp500ReturnMap: { [key: string]: number } = {};
+      chartData.forEach(point => {
+        const matched = sorted.find(item => item.date <= point.date);
+        if (!matched) return;
+        const returnPct = basePrice > 0 ? ((matched.close - basePrice) / basePrice) * 100 : 0;
+        sp500ReturnMap[point.date] = Math.round(returnPct * 100) / 100;
       });
-      
-      setSP500Data(sp500SimData);
+      setSP500Data(sp500ReturnMap);
       console.log('📈 S&P 500 데이터 로드 완료');
     } catch (error) {
       console.error('❌ S&P 500 데이터 로드 실패:', error);
@@ -464,8 +460,15 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
                           <div className="flex items-center gap-3 mb-2">
                             <Calendar className="h-4 w-4 text-blue-400" />
                             <div className="font-medium text-white">{formatDate(journal.date)}</div>
-                            {journal.memo && (
-                              <Badge variant="outline" className="border-red-500 text-red-400 text-xs">
+                            {getMemoText(journal.memo) && (
+                              <Badge
+                                variant="outline"
+                                className={`text-xs ${
+                                  hasImportantMemo(journal.memo)
+                                    ? 'border-amber-500 text-amber-400'
+                                    : 'border-red-500 text-red-400'
+                                }`}
+                              >
                                 메모
                               </Badge>
                             )}
@@ -473,9 +476,9 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
                           <div className="text-sm text-gray-300 mt-1">
                             총 자산: {(journal.totalAssets || 0).toLocaleString()}원
                           </div>
-                          {journal.memo && (
+                          {getMemoText(journal.memo) && (
                             <div className="text-xs text-gray-400 mt-2 truncate max-w-md">
-                              💭 {journal.memo.substring(0, 80)}{journal.memo.length > 80 ? '...' : ''}
+                              💭 {getMemoPreview(journal.memo, 80)}
                             </div>
                           )}
                         </div>
