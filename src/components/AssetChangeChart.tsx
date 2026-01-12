@@ -63,12 +63,12 @@ const CustomizedDot = (props: any) => {
   const hasMemo = memoEntries.length > 0 || Boolean(payload.marketIssues);
 
   if (hasMemo) {
-    const fillColor =
-      payload.hasImportantMemo || payload.importantTag || hasImportantMemo(payload.memo)
-        ? '#f7b500'
-        : '#ef4444';
+    const isImportant =
+      payload.hasImportantMemo || payload.importantTag || hasImportantMemo(payload.memo);
+    const fillColor = isImportant ? '#facc15' : '#ef4444';
+    const strokeColor = isImportant ? '#fde047' : 'white';
     return (
-      <circle cx={cx} cy={cy} r={5} stroke="white" strokeWidth={2} fill={fillColor} />
+      <circle cx={cx} cy={cy} r={6} stroke={strokeColor} strokeWidth={2} fill={fillColor} />
     );
   }
   
