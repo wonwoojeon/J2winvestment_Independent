@@ -1,6 +1,24 @@
 // FRED API 연동 라이브러리 (S&P 500)
 const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY as string | undefined;
 const BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
+const FRED_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
+
+const buildFredUrl = (params: Record<string, string>) => {
+  const url = new URL(BASE_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  if (FRED_API_KEY) {
+    url.searchParams.set('api_key', FRED_API_KEY);
+  }
+  url.searchParams.set('file_type', 'json');
+  return url.toString();
+};
+
+const fetchFred = async (url: string) => {
+  const proxiedUrl = `${FRED_PROXY_BASE}${encodeURIComponent(url)}`;
+  return fetch(proxiedUrl);
+};
 
 export interface SP500Data {
   date: string;
@@ -26,12 +44,8 @@ export interface AlphaVantageResponse {
 export const fetchSP500Data = async (_outputSize: 'compact' | 'full' = 'compact'): Promise<SP500Data[]> => {
   try {
     console.log('📊 FRED API 호출 시작 - S&P 500 데이터');
-    if (!FRED_API_KEY) {
-      throw new Error('VITE_FRED_API_KEY가 설정되지 않았습니다.');
-    }
-    const url = `${BASE_URL}?series_id=SP500&api_key=${FRED_API_KEY}&file_type=json`;
-    
-    const response = await fetch(url);
+    const url = buildFredUrl({ series_id: 'SP500' });
+    const response = await fetchFred(url);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

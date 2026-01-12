@@ -9,7 +9,7 @@ import { fetchSP500Data, SP500Data, checkAPIUsage } from '@/lib/alphaVantage';
 import { TrendingUp, TrendingDown, Activity, RefreshCw, BarChart3, Eye, EyeOff, Info } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MemoEntry } from '@/types/investment';
-import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
+import { getImportantMemoTag, getMemoPreview, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 
 // 통화 포맷팅 함수
 const formatKoreanCurrency = (amount: number): string => {
@@ -248,6 +248,7 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       const memoText = getMemoText(data.memo);
+      const memoPreview = getMemoPreview(data.memo, 160);
       const importantTag = data.importantTag || getImportantMemoTag(data.memo);
       return (
         // Restrict the maximum width of the tooltip to prevent it from overflowing
@@ -289,15 +290,15 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
             )}
           </div>
 
-          {(memoText || data.marketIssues) && (
+          {(memoPreview || data.marketIssues) && (
             <div className="mt-2 pt-2 border-t border-slate-700">
               {importantTag && (
                 <p className="text-amber-300 font-semibold mb-1">#{importantTag}</p>
               )}
               <div className="flex items-start gap-1.5 text-slate-300">
                 <span className="text-xs mt-0.5">📝</span>
-                <span className="text-slate-400 leading-relaxed max-w-xs whitespace-pre-wrap break-words">
-                  {memoText || data.marketIssues}
+                <span className="text-slate-400 leading-relaxed max-w-xs line-clamp-3 break-words">
+                  {memoPreview || data.marketIssues}
                 </span>
               </div>
             </div>

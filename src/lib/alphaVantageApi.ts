@@ -1,6 +1,24 @@
 // FRED API 연동 라이브러리 (S&P 500)
 const FRED_API_KEY = import.meta.env.VITE_FRED_API_KEY as string | undefined;
 const BASE_URL = 'https://api.stlouisfed.org/fred/series/observations';
+const FRED_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
+
+const buildFredUrl = (params: Record<string, string>) => {
+  const url = new URL(BASE_URL);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  if (FRED_API_KEY) {
+    url.searchParams.set('api_key', FRED_API_KEY);
+  }
+  url.searchParams.set('file_type', 'json');
+  return url.toString();
+};
+
+const fetchFred = async (url: string) => {
+  const proxiedUrl = `${FRED_PROXY_BASE}${encodeURIComponent(url)}`;
+  return fetch(proxiedUrl);
+};
 
 export interface SP500Data {
   date: string;
@@ -12,10 +30,7 @@ export interface SP500Data {
 // S&P 500 일일 데이터 가져오기 (SPY ETF 사용)
 export const fetchSP500DailyData = async (): Promise<SP500Data[]> => {
   try {
-    if (!FRED_API_KEY) {
-      throw new Error('VITE_FRED_API_KEY가 설정되지 않았습니다.');
-    }
-    const response = await fetch(`${BASE_URL}?series_id=SP500&api_key=${FRED_API_KEY}&file_type=json`);
+    const response = await fetchFred(buildFredUrl({ series_id: 'SP500' }));
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -77,11 +92,8 @@ export const fetchSP500RealTimePrice = async (): Promise<{ price: number; change
 // 월간 S&P 500 데이터 가져오기
 export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
   try {
-    if (!FRED_API_KEY) {
-      throw new Error('VITE_FRED_API_KEY가 설정되지 않았습니다.');
-    }
-    const response = await fetch(
-      `${BASE_URL}?series_id=SP500&api_key=${FRED_API_KEY}&file_type=json&frequency=monthly&aggregation_method=avg`
+    const response = await fetchFred(
+      buildFredUrl({ series_id: 'SP500', frequency: 'monthly', aggregation_method: 'avg' })
     );
     
     if (!response.ok) {
@@ -133,10 +145,7 @@ export const fetchSP500MonthlyData = async (): Promise<SP500Data[]> => {
 // API 호출 제한 확인
 export const checkApiLimit = async (): Promise<boolean> => {
   try {
-    if (!FRED_API_KEY) {
-      throw new Error('VITE_FRED_API_KEY가 설정되지 않았습니다.');
-    }
-    const response = await fetch(`${BASE_URL}?series_id=SP500&api_key=${FRED_API_KEY}&file_type=json`);
+    const response = await fetchFred(buildFredUrl({ series_id: 'SP500' }));
     return response.ok;
   } catch (error) {
     console.error('API 제한 확인 실패:', error);
