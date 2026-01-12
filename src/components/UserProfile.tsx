@@ -22,7 +22,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
     nickname: '',
     display_name: '',
     bio: '',
-    is_public: false
+    is_public: false,
+    hide_asset_amounts: false
   });
 
   useEffect(() => {
@@ -44,7 +45,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
           nickname: profile.nickname || '',
           display_name: profile.display_name || '',
           bio: profile.bio || '',
-          is_public: profile.is_public || false
+          is_public: profile.is_public || false,
+          hide_asset_amounts: profile.hide_asset_amounts || false
         });
       } else {
         // 기본값 설정
@@ -52,7 +54,8 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
           nickname: '',
           display_name: user.email?.split('@')[0] || '',
           bio: '',
-          is_public: false
+          is_public: false,
+          hide_asset_amounts: false
         });
       }
     } catch (error) {
@@ -243,6 +246,23 @@ export const UserProfile: React.FC<UserProfileProps> = ({ onClose }) => {
                   className="ml-4"
                 />
               </div>
+              {profileData.is_public && (
+                <div className="flex items-center justify-between mt-4">
+                  <div className="flex-1">
+                    <Label className="text-gray-300 font-medium">
+                      자산 금액 감추기
+                    </Label>
+                    <p className="text-sm text-gray-400 mt-1">
+                      공개된 일지에서 총자산 및 보유 자산 금액을 비공개 처리합니다.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={profileData.hide_asset_amounts || false}
+                    onCheckedChange={(checked) => setProfileData(prev => ({ ...prev, hide_asset_amounts: checked }))}
+                    className="ml-4"
+                  />
+                </div>
+              )}
             </div>
 
             {/* 안내 메시지 */}

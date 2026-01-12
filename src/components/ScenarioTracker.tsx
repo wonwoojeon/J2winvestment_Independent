@@ -32,7 +32,12 @@ const emptyForm = {
   status: 'open' as ScenarioStatus
 };
 
-export const ScenarioTracker: React.FC = () => {
+interface ScenarioTrackerProps {
+  userId?: string;
+  readOnly?: boolean;
+}
+
+export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOnly }) => {
   const [scenarios, setScenarios] = useState<InvestmentScenario[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -40,19 +45,21 @@ export const ScenarioTracker: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [expandedScenarios, setExpandedScenarios] = useState<Record<string, boolean>>({});
+  const isReadOnly = Boolean(readOnly);
 
   const loadScenarios = async () => {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const targetUserId = userId ?? user?.id;
+      if (!targetUserId) {
         setScenarios([]);
         return;
       }
       const { data, error } = await supabase
         .from('investment_scenarios')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -66,7 +73,14 @@ export const ScenarioTracker: React.FC = () => {
 
   useEffect(() => {
     loadScenarios();
-  }, []);
+  }, [userId]);
+
+  useEffect(() => {
+    if (isReadOnly) {
+      setShowForm(false);
+      setEditingId(null);
+    }
+  }, [isReadOnly]);
 
   const resetForm = () => {
     setForm(emptyForm);
@@ -74,6 +88,7 @@ export const ScenarioTracker: React.FC = () => {
   };
 
   const handleSave = async () => {
+    if (isReadOnly) return;
     if (!form.title.trim()) {
       alert('제목을 입력해주세요.');
       return;
@@ -123,6 +138,7 @@ export const ScenarioTracker: React.FC = () => {
   };
 
   const handleEdit = (scenario: InvestmentScenario) => {
+    if (isReadOnly) return;
     setEditingId(scenario.id);
     setForm({
       title: scenario.title,
@@ -135,6 +151,7 @@ export const ScenarioTracker: React.FC = () => {
   };
 
   const handleDelete = async (scenarioId: string) => {
+    if (isReadOnly) return;
     if (!confirm('이 시나리오를 삭제할까요?')) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -177,22 +194,24 @@ export const ScenarioTracker: React.FC = () => {
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               새로고침
             </Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-700"
-              onClick={() => {
-                setShowForm(prev => !prev);
-                if (showForm) resetForm();
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              새 시나리오
-            </Button>
+            {!isReadOnly && (
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => {
+                  setShowForm(prev => !prev);
+                  if (showForm) resetForm();
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                새 시나리오
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
 
-      {showForm && (
+      {showForm && !isReadOnly && (
         <CardContent className="pt-4 space-y-4 border-b border-slate-800/50">
           <div className="space-y-2">
             <Label className="text-slate-400">제목</Label>
@@ -313,23 +332,27 @@ export const ScenarioTracker: React.FC = () => {
                         </>
                       )}
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-slate-400 hover:text-white"
-                      onClick={() => handleEdit(scenario)}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-rose-400 hover:text-rose-300"
-                      onClick={() => handleDelete(scenario.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {!isReadOnly && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-slate-400 hover:text-white"
+                        onClick={() => handleEdit(scenario)}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-rose-400 hover:text-rose-300"
+                        onClick={() => handleDelete(scenario.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
                 </div>
                 {isExpanded && (
                   <div className="space-y-2">

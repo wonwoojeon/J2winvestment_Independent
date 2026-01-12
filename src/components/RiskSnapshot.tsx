@@ -10,6 +10,7 @@ import { getJournalExchangeRate } from '@/utils/exchangeRate';
 interface RiskSnapshotProps {
   journal?: InvestmentJournal | null;
   exchangeRate: number;
+  hideAssetAmounts?: boolean;
 }
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
@@ -22,7 +23,7 @@ const getFearGreedLabel = (value: number) => {
   return { text: '극공포', color: 'text-purple-400' };
 };
 
-export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRate }) => {
+export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRate, hideAssetAmounts }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!journal) {
@@ -114,7 +115,7 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
               보유 현금
             </div>
             <div className="mt-2 text-lg font-semibold text-slate-100">
-              {formatKoreanCurrency(cashTotal)}
+              {hideAssetAmounts ? '비공개' : formatKoreanCurrency(cashTotal)}
             </div>
             <div className="text-xs text-slate-500 mt-1">
               현금 비중 {formatPercent(cashRatio)}
@@ -153,7 +154,7 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
               총 자산
             </div>
             <div className="mt-2 text-lg font-semibold text-slate-100">
-              {formatKoreanCurrency(totalAssets)}
+              {hideAssetAmounts ? '비공개' : formatKoreanCurrency(totalAssets)}
             </div>
             <div className="text-xs text-slate-500 mt-1">
               최신 일지 기준

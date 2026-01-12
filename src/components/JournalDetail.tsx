@@ -14,9 +14,10 @@ interface JournalDetailProps {
   onEdit: () => void;
   onDelete: (id: string) => void;
   exchangeRate: number;
+  hideAssetAmounts?: boolean;
 }
 
-export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate }: JournalDetailProps) => {
+export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate, hideAssetAmounts }: JournalDetailProps) => {
   // 🔥 현재 사용자 정보 상태 추가
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isOwner, setIsOwner] = useState(false);
@@ -116,6 +117,8 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
     return isNaN(num) ? '0' : Math.floor(num).toLocaleString();
   };
 
+  const formatCurrency = (num: number) => (hideAssetAmounts ? '비공개' : `${formatNumber(num)}원`);
+
   // Fear & Greed Index 분류 함수
   const getFearGreedClassification = (value: number) => {
     if (value >= 75) return { text: '극도의 탐욕', color: 'text-red-500' };
@@ -198,22 +201,22 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
               <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
                 <div className="text-sm text-gray-400">총 자산</div>
                 <div className="text-2xl font-bold text-blue-400">
-                  {formatNumber(journal.totalAssets || totalAssets)}원
+                  {formatCurrency(journal.totalAssets || totalAssets)}
                 </div>
               </div>
               <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
                 <div className="text-sm text-gray-400">해외주식</div>
                 <div className="text-lg font-semibold text-white">
-                  {formatNumber(foreignStocksTotalKRW)}원
+                  {formatCurrency(foreignStocksTotalKRW)}
                 </div>
                 <div className="text-xs text-gray-500">
-                  ${formatNumber(foreignStocksTotal)}
+                  {hideAssetAmounts ? '비공개' : `$${formatNumber(foreignStocksTotal)}`}
                 </div>
               </div>
               <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
                 <div className="text-sm text-gray-400">국내주식</div>
                 <div className="text-lg font-semibold text-white">
-                  {formatNumber(domesticStocksTotal)}원
+                  {formatCurrency(domesticStocksTotal)}
                 </div>
               </div>
             </div>
@@ -230,6 +233,11 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
               </Button>
               
               {expandedSections.assetDetails && (
+                hideAssetAmounts ? (
+                  <div className="mt-4 text-sm text-gray-400">
+                    자산 상세 정보는 비공개로 설정되어 있습니다.
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
                   {/* 해외주식 - 토스 스타일: 미니 카드 */}
                   {safeJournal.foreignStocks.length > 0 && (
@@ -248,7 +256,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                             </div>
                             <div className="text-right">
                               <div className="font-semibold text-white">
-                                {formatNumber((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}원
+                                {formatCurrency((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}
                               </div>
                               <div className="text-sm text-gray-500">
                                 ${formatNumber((stock.price || 0) * (stock.quantity || 0))}
@@ -276,7 +284,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                               </div>
                             </div>
                             <div className="font-semibold text-white">
-                              {formatNumber((stock.price || 0) * (stock.quantity || 0))}원
+                              {formatCurrency((stock.price || 0) * (stock.quantity || 0))}
                             </div>
                           </div>
                         ))}
@@ -293,7 +301,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                       {cashKrw > 0 && (
                         <div className="flex justify-between items-center p-3 bg-gray-700 rounded-md shadow-sm">
                           <div className="font-medium text-white">원화 (KRW)</div>
-                          <div className="font-semibold text-white">{formatNumber(cashKrw)}원</div>
+                          <div className="font-semibold text-white">{formatCurrency(cashKrw)}</div>
                         </div>
                       )}
                       {cashUsd > 0 && (
@@ -301,7 +309,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                           <div className="font-medium text-white">달러 (USD)</div>
                           <div className="text-right">
                             <div className="font-semibold text-white">
-                              {formatNumber(cashUsd * effectiveRate)}원
+                              {formatCurrency(cashUsd * effectiveRate)}
                             </div>
                             <div className="text-sm text-gray-500">
                               ${formatNumber(cashUsd)}
@@ -312,6 +320,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate 
                     </div>
                   </div>
                 </div>
+                )
               )}
             </div>
           </CardContent>

@@ -14,6 +14,7 @@ export async function createUserProfile(userId: string, profileData: Partial<Use
           display_name: profileData.display_name,
           bio: profileData.bio,
           is_public: profileData.is_public || false,
+          hide_asset_amounts: profileData.hide_asset_amounts || false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }
@@ -85,6 +86,7 @@ export async function searchPublicJournals(nickname: string): Promise<PublicJour
           display_name,
           bio,
           is_public,
+          hide_asset_amounts,
           created_at,
           updated_at
         )

@@ -54,6 +54,8 @@ interface ChartData {
 interface AssetChangeChartProps {
   onPointClick?: (date: string) => void;
   onViewMemos?: () => void;
+  userId?: string;
+  hideAssetAmounts?: boolean;
 }
 
 // 커스텀 닷 컴포넌트: 메모나 이슈가 있는 날은 빨간 점으로 표시
@@ -80,7 +82,12 @@ const CustomizedDot = (props: any) => {
   return null;
 };
 
-const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onViewMemos }) => {
+const AssetChangeChart: React.FC<AssetChangeChartProps> = ({
+  onPointClick,
+  onViewMemos,
+  userId,
+  hideAssetAmounts
+}) => {
   const [rawData, setRawData] = useState<ChartData[]>([]); // 원본 데이터
   const [loading, setLoading] = useState(true);
   const [sp500Loading, setSp500Loading] = useState(false);
@@ -145,12 +152,13 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const targetUserId = userId ?? user?.id;
+      if (!targetUserId) return;
 
       const { data, error } = await supabase
         .from('investment_journals')
         .select('date, total_assets, memo, market_issues, has_important_memo, important_tag')
-        .eq('user_id', user.id)
+        .eq('user_id', targetUserId)
         .order('date', { ascending: true });
 
       if (error) throw error;
@@ -269,7 +277,9 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
                 <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
                 총 자산
               </span>
-              <span className="text-white font-mono">{formatKoreanCurrency(data.assets)}</span>
+              <span className="text-white font-mono">
+                {hideAssetAmounts ? '비공개' : formatKoreanCurrency(data.assets)}
+              </span>
             </div>
             <div className="flex items-center justify-between gap-4">
               <span className="text-emerald-400 flex items-center gap-1">
@@ -368,6 +378,9 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
   const latestAssetPercentage = latestData?.assetPercentage || 0;
   const latestSP500Percentage = latestData?.sp500Percentage || 0;
   const alpha = latestAssetPercentage - latestSP500Percentage;
+  const showPercentageOnly = Boolean(hideAssetAmounts);
+  const assetLineKey = showSP500 || showPercentageOnly ? 'assetPercentage' : 'assets';
+  const assetLineName = showSP500 || showPercentageOnly ? '내 수익률' : '총 자산';
 
   return (
     <Card className="bg-slate-900 border-slate-800 shadow-xl">
@@ -380,7 +393,14 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
             </CardTitle>
             <div className="flex items-center gap-3 mt-2">
               <p className="text-slate-400 text-sm">
-                현재 자산: <span className="text-slate-200 font-semibold">{latestData ? formatKoreanCurrency(latestData.assets) : '0원'}</span>
+                현재 자산:{' '}
+                <span className="text-slate-200 font-semibold">
+                  {latestData
+                    ? hideAssetAmounts
+                      ? '비공개'
+                      : formatKoreanCurrency(latestData.assets)
+                    : '0원'}
+                </span>
               </p>
               <div className="h-3 w-px bg-slate-700"></div>
               <Tabs defaultValue="all" value={timeRange} onValueChange={(v) => setTimeRange(v as 'all' | '1y' | '3y')} className="h-6">
@@ -485,7 +505,15 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
               <YAxis 
                 stroke="#64748b"
                 fontSize={11}
-                tickFormatter={(value) => showSP500 ? `${value.toFixed(0)}%` : formatKoreanCurrency(value).replace('원', '')}
+                tickFormatter={(value) => {
+                  if (showSP500 || showPercentageOnly) {
+                    return `${value.toFixed(0)}%`;
+                  }
+                  if (hideAssetAmounts) {
+                    return '';
+                  }
+                  return formatKoreanCurrency(value).replace('원', '');
+                }}
                 width={50}
                 axisLine={false}
                 tickLine={false}
@@ -502,12 +530,12 @@ const AssetChangeChart: React.FC<AssetChangeChartProps> = ({ onPointClick, onVie
               
               <Area
                 type="monotone"
-                dataKey={showSP500 ? "assetPercentage" : "assets"}
+                dataKey={assetLineKey}
                 stroke="#3B82F6"
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorAssets)"
-                name={showSP500 ? "내 수익률" : "총 자산"}
+                name={assetLineName}
                 activeDot={{ r: 6, strokeWidth: 0, fill: '#60A5FA' }}
                 dot={<CustomizedDot />}
               />

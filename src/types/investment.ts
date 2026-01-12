@@ -65,6 +65,7 @@ export interface UserProfile {
   bio?: string;
   avatar_url?: string;
   is_public?: boolean;
+  hide_asset_amounts?: boolean;
   created_at: string;
   updated_at: string;
 }

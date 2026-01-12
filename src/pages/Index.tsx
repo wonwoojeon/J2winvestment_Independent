@@ -499,6 +499,7 @@ function Index() {
           onDelete={handleJournalDelete}
           onMemoDelete={handleMemoDelete}
           exchangeRate={exchangeRate}
+          hideAssetAmounts={isPublicDetail ? selectedUserProfile?.hide_asset_amounts : false}
         />
       </div>
     );

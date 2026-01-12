@@ -77,6 +77,7 @@ interface UserProfile {
   bio: string;
   avatar_url: string;
   is_public: boolean;
+  hide_asset_amounts?: boolean;
   latest_assets: number;
   journal_count: number;
   total_return: number;
@@ -393,7 +394,7 @@ export const PublicJournalSearch: React.FC<PublicJournalSearchProps> = ({
                       <div className="flex justify-between">
                         <span className="text-gray-400 text-xs sm:text-sm">최신 자산:</span>
                         <span className="text-green-400 font-medium text-xs sm:text-sm">
-                          {formatKoreanCurrency(profile.latest_assets)}
+                          {profile.hide_asset_amounts ? '비공개' : formatKoreanCurrency(profile.latest_assets)}
                         </span>
                       </div>
                       <div className="flex justify-between">
