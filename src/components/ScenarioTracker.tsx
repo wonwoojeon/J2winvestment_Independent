@@ -6,9 +6,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp, MoreVertical } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { InvestmentScenario } from '@/types/investment';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem
+} from '@/components/ui/dropdown-menu';
 
 type ScenarioStatus = InvestmentScenario['status'];
 
@@ -333,24 +339,37 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                       )}
                     </Button>
                   {!isReadOnly && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-slate-400 hover:text-white shrink-0 px-2"
-                        onClick={() => handleEdit(scenario)}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-slate-400 hover:text-white shrink-0 px-2"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">더보기</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        align="end"
+                        className="bg-slate-900 border-slate-700 text-slate-200"
                       >
-                        <Edit3 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-rose-400 hover:text-rose-300 shrink-0 px-2"
-                        onClick={() => handleDelete(scenario.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
+                        <DropdownMenuItem
+                          onClick={() => handleEdit(scenario)}
+                          className="cursor-pointer focus:bg-slate-800"
+                        >
+                          <Edit3 className="h-4 w-4 mr-2" />
+                          수정
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(scenario.id)}
+                          className="cursor-pointer text-rose-400 focus:text-rose-300 focus:bg-rose-500/10"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          삭제
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   )}
                 </div>
                 </div>
