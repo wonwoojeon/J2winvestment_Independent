@@ -310,25 +310,25 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                       {scenario.title}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="outline" className={`text-xs ${statusStyles[scenario.status]}`}>
+                  <div className="flex items-center gap-2 flex-nowrap">
+                    <Badge variant="outline" className={`text-xs shrink-0 ${statusStyles[scenario.status]}`}>
                       {statusLabels[scenario.status]}
                     </Badge>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-slate-400 hover:text-white"
+                      className="text-slate-400 hover:text-white shrink-0 whitespace-nowrap px-2"
                       onClick={() => toggleScenario(scenario.id)}
                     >
                       {isExpanded ? (
                         <>
-                          <ChevronUp className="h-4 w-4 mr-1" />
-                          접기
+                          <ChevronUp className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">접기</span>
                         </>
                       ) : (
                         <>
-                          <ChevronDown className="h-4 w-4 mr-1" />
-                          펼치기
+                          <ChevronDown className="h-4 w-4 sm:mr-1" />
+                          <span className="hidden sm:inline">펼치기</span>
                         </>
                       )}
                     </Button>
@@ -337,7 +337,7 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-slate-400 hover:text-white"
+                        className="text-slate-400 hover:text-white shrink-0 px-2"
                         onClick={() => handleEdit(scenario)}
                       >
                         <Edit3 className="h-4 w-4" />
@@ -345,7 +345,7 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="text-rose-400 hover:text-rose-300"
+                        className="text-rose-400 hover:text-rose-300 shrink-0 px-2"
                         onClick={() => handleDelete(scenario.id)}
                       >
                         <Trash2 className="h-4 w-4" />
