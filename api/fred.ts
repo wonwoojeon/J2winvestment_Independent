@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   url.searchParams.set('api_key', apiKey);
   url.searchParams.set('file_type', 'json');
 
-  const allowedParams = ['observation_start', 'sort_order', 'limit', 'frequency', 'aggregation_method'];
+  const allowedParams = ['observation_start', 'observation_end', 'sort_order', 'limit', 'frequency', 'aggregation_method'];
   allowedParams.forEach((param) => {
     const value = req.query[param];
     if (value) {

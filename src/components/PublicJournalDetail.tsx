@@ -28,6 +28,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
     assetDetails: false,
     trades: !!(journal.trades && journal.trades.trim().length > 0),
     psychology: true,
+    psychologyExtras: false,
     checklists: true,
     memo: !!memoText || !!(journal.marketIssues && journal.marketIssues.trim().length > 0)
   });
@@ -94,6 +95,24 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
     if (index >= 25) return { text: 'Fear', color: 'text-blue-500' };
     return { text: 'Extreme Fear', color: 'text-green-500' };
   };
+
+  const coreIndicators = [
+    { label: 'VIX', value: safeJournal.psychologyCheck.vixIndex },
+    { label: 'Put/Call Ratio', value: safeJournal.psychologyCheck.putCallRatio },
+    { label: 'S&P 500 RSI (14)', value: safeJournal.psychologyCheck.sp500Rsi14 },
+    { label: '달러 인덱스 (DXY)', value: safeJournal.psychologyCheck.dxyIndex },
+    { label: '미국 10년물 금리', value: safeJournal.psychologyCheck.us10yYield }
+  ];
+
+  const extraIndicators = [
+    { label: 'GDPNow (미국)', value: safeJournal.psychologyCheck.gdpNow },
+    { label: 'High Yield Spread', value: safeJournal.psychologyCheck.highYieldSpread },
+    { label: 'Fed 금리 동결 확률', value: safeJournal.psychologyCheck.fedFundsProbability },
+    { label: '실업률', value: safeJournal.psychologyCheck.unemploymentRate },
+    { label: 'M2 유동성 (미국기준)', value: safeJournal.psychologyCheck.m2MoneySupply },
+    { label: '마진 부채', value: safeJournal.psychologyCheck.marginDebt },
+    { label: '신용잔고비율', value: safeJournal.psychologyCheck.marginRatio || safeJournal.psychologyCheck.confidenceLevel }
+  ];
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6 bg-gray-900 text-white min-h-screen">
@@ -260,7 +279,6 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
           {expandedSections.psychology && (
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Fear & Greed Index */}
                 <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
                   <div className="text-sm text-gray-400 mb-2">Fear & Greed Index</div>
                   <div className="text-3xl font-bold text-purple-400 mb-1">
@@ -271,28 +289,40 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
                   </div>
                 </div>
 
-                {/* M2 유동성 */}
-                {safeJournal.psychologyCheck.m2MoneySupply && (
-                  <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                    <div className="text-sm text-gray-400 mb-2">M2 유동성</div>
+                {coreIndicators.map((indicator) => (
+                  <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
+                    <div className="text-sm text-gray-400 mb-2">{indicator.label}</div>
                     <div className="text-lg font-semibold text-white">
-                      {safeJournal.psychologyCheck.m2MoneySupply}
+                      {indicator.value || '-'}
                     </div>
-                    <div className="text-xs text-gray-500">미국 기준</div>
                   </div>
-                )}
-
-                {/* 신용잔고비율 */}
-                {safeJournal.psychologyCheck.confidenceLevel && (
-                  <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                    <div className="text-sm text-gray-400 mb-2">신용잔고비율</div>
-                    <div className="text-lg font-semibold text-white">
-                      {safeJournal.psychologyCheck.confidenceLevel}
-                    </div>
-                    <div className="text-xs text-gray-500">미국 기준</div>
-                  </div>
-                )}
+                ))}
               </div>
+
+              <div className="flex justify-end mt-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleSection('psychologyExtras')}
+                  className="text-gray-300 hover:text-white hover:bg-gray-700"
+                >
+                  {expandedSections.psychologyExtras ? '접기' : '더보기'}
+                  {expandedSections.psychologyExtras ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+                </Button>
+              </div>
+
+              {expandedSections.psychologyExtras && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+                  {extraIndicators.map((indicator) => (
+                    <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
+                      <div className="text-sm text-gray-400 mb-2">{indicator.label}</div>
+                      <div className="text-lg font-semibold text-white">
+                        {indicator.value || '-'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           )}
         </Card>

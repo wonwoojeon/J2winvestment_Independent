@@ -22,6 +22,8 @@ import {
   DollarSign,
   CheckCircle2,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
   TrendingUp as LucideTrendingUp,
 } from 'lucide-react';
 import { InvestmentJournal, ChecklistItem, PlanStatus } from '@/types/investment';
@@ -60,6 +62,15 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
       m2MoneySupply: '',
       marginDebt: '',
       marginRatio: '',
+      vixIndex: '',
+      putCallRatio: '',
+      sp500Rsi14: '',
+      dxyIndex: '',
+      us10yYield: '',
+      gdpNow: '',
+      highYieldSpread: '',
+      fedFundsProbability: '',
+      unemploymentRate: '',
       marketSentiments: []
     },
     bullMarketChecklist: initialData?.bullMarketChecklist || [],
@@ -75,6 +86,8 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
   const [exchangeRate, setExchangeRate] = useState(initialData?.exchangeRate ?? 1300);
   const [psychologyLoading, setPsychologyLoading] = useState(false);
   const [exchangeRateLoading, setExchangeRateLoading] = useState(false);
+  const [showExtraIndicators, setShowExtraIndicators] = useState(false);
+  const [lastIndicatorDate, setLastIndicatorDate] = useState<string | null>(null);
 
   // 초기 체크리스트 설정 (이전 기록 반영 로직 추가)
   useEffect(() => {
@@ -255,31 +268,62 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
   };
 
   // 🔥 심리지표 자동 패치 함수 (개선됨)
-  const fetchPsychologyIndicators = async () => {
+  const fetchPsychologyIndicators = useCallback(async (options?: { silent?: boolean; dateOverride?: string }) => {
     setPsychologyLoading(true);
+    const targetDate = options?.dateOverride || formData.date || new Date().toISOString().split('T')[0];
     try {
-      const psychologyData = await fetchComprehensivePsychologyData();
+      const psychologyData = await fetchComprehensivePsychologyData(targetDate);
       
-      setFormData(prev => ({
-        ...prev,
-        psychologyCheck: {
-          ...prev.psychologyCheck,
-          fearGreedIndex: psychologyData.fearGreedIndex,
-          m2MoneySupply: psychologyData.m2MoneySupply,
-          marginDebt: psychologyData.marginDebt,
-          marginRatio: psychologyData.marginRatio,
-          confidenceLevel: psychologyData.marginRatio // 호환성 유지
-        }
-      }));
+      setFormData(prev => {
+        const nextPsychology = { ...prev.psychologyCheck };
+        nextPsychology.fearGreedIndex = psychologyData.fearGreedIndex;
+        nextPsychology.m2MoneySupply = psychologyData.m2MoneySupply;
+        nextPsychology.marginDebt = psychologyData.marginDebt;
+        nextPsychology.marginRatio = psychologyData.marginRatio;
+        nextPsychology.confidenceLevel = psychologyData.marginRatio; // 호환성 유지
 
-      alert(`심리지표가 업데이트되었습니다!\n\nFear & Greed: ${psychologyData.fearGreedIndex}\nM2 유동성: ${psychologyData.m2MoneySupply}\n마진 부채: ${psychologyData.marginDebt}`);
+        if (psychologyData.vixIndex) nextPsychology.vixIndex = psychologyData.vixIndex;
+        if (psychologyData.putCallRatio) nextPsychology.putCallRatio = psychologyData.putCallRatio;
+        if (psychologyData.sp500Rsi14) nextPsychology.sp500Rsi14 = psychologyData.sp500Rsi14;
+        if (psychologyData.dxyIndex) nextPsychology.dxyIndex = psychologyData.dxyIndex;
+        if (psychologyData.us10yYield) nextPsychology.us10yYield = psychologyData.us10yYield;
+        if (psychologyData.gdpNow) nextPsychology.gdpNow = psychologyData.gdpNow;
+        if (psychologyData.highYieldSpread) nextPsychology.highYieldSpread = psychologyData.highYieldSpread;
+        if (psychologyData.unemploymentRate) nextPsychology.unemploymentRate = psychologyData.unemploymentRate;
+
+        return {
+          ...prev,
+          psychologyCheck: nextPsychology
+        };
+      });
+
+      setLastIndicatorDate(targetDate);
+
+      if (!options?.silent) {
+        const lines = [
+          `Fear & Greed: ${psychologyData.fearGreedIndex}`,
+          psychologyData.vixIndex ? `VIX: ${psychologyData.vixIndex}` : null,
+          psychologyData.putCallRatio ? `Put/Call: ${psychologyData.putCallRatio}` : null,
+          psychologyData.us10yYield ? `미국 10Y: ${psychologyData.us10yYield}` : null
+        ].filter(Boolean);
+        alert(`심리지표가 업데이트되었습니다!\n\n${lines.join('\n')}`);
+      }
     } catch (error) {
       console.error('❌ 심리지표 fetch 실패:', error);
-      alert('심리지표 업데이트에 실패했습니다. 수동으로 입력해주세요.');
+      if (!options?.silent) {
+        alert('심리지표 업데이트에 실패했습니다. 수동으로 입력해주세요.');
+      }
     } finally {
       setPsychologyLoading(false);
     }
-  };
+  }, [formData.date]);
+
+  useEffect(() => {
+    if (initialData) return;
+    if (!formData.date) return;
+    if (formData.date === lastIndicatorDate) return;
+    fetchPsychologyIndicators({ silent: true, dateOverride: formData.date });
+  }, [fetchPsychologyIndicators, formData.date, initialData, lastIndicatorDate]);
 
   // 총 자산 계산
   const calculateTotalAssets = useCallback(() => {
@@ -528,8 +572,8 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
             </div>
             
             <Card className="bg-slate-900 border-slate-800 shadow-lg overflow-hidden">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <CardContent className="p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <Label className="text-slate-400 text-xs">Fear & Greed Index</Label>
                     <div className="relative">
@@ -551,42 +595,168 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-400 text-xs">M2 유동성</Label>
+                    <Label className="text-slate-400 text-xs">VIX</Label>
                     <Input
-                      value={formData.psychologyCheck?.m2MoneySupply || ''}
+                      value={formData.psychologyCheck?.vixIndex || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        psychologyCheck: { ...prev.psychologyCheck, m2MoneySupply: e.target.value }
+                        psychologyCheck: { ...prev.psychologyCheck, vixIndex: e.target.value }
                       }))}
                       className="bg-slate-800 border-slate-700 text-white"
                       placeholder="자동 입력됨"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-400 text-xs">마진 부채</Label>
+                    <Label className="text-slate-400 text-xs">Put/Call Ratio (Equity)</Label>
                     <Input
-                      value={formData.psychologyCheck?.marginDebt || ''}
+                      value={formData.psychologyCheck?.putCallRatio || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        psychologyCheck: { ...prev.psychologyCheck, marginDebt: e.target.value }
+                        psychologyCheck: { ...prev.psychologyCheck, putCallRatio: e.target.value }
                       }))}
                       className="bg-slate-800 border-slate-700 text-white"
                       placeholder="자동 입력됨"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-400 text-xs">신용잔고비율</Label>
+                    <Label className="text-slate-400 text-xs">S&P 500 RSI (14)</Label>
                     <Input
-                      value={formData.psychologyCheck?.marginRatio || ''}
+                      value={formData.psychologyCheck?.sp500Rsi14 || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        psychologyCheck: { ...prev.psychologyCheck, marginRatio: e.target.value }
+                        psychologyCheck: { ...prev.psychologyCheck, sp500Rsi14: e.target.value }
+                      }))}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="자동 입력됨"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs">달러 인덱스 (DXY)</Label>
+                    <Input
+                      value={formData.psychologyCheck?.dxyIndex || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        psychologyCheck: { ...prev.psychologyCheck, dxyIndex: e.target.value }
+                      }))}
+                      className="bg-slate-800 border-slate-700 text-white"
+                      placeholder="자동 입력됨"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-slate-400 text-xs">미국 10년물 금리</Label>
+                    <Input
+                      value={formData.psychologyCheck?.us10yYield || ''}
+                      onChange={(e) => setFormData(prev => ({
+                        ...prev,
+                        psychologyCheck: { ...prev.psychologyCheck, us10yYield: e.target.value }
                       }))}
                       className="bg-slate-800 border-slate-700 text-white"
                       placeholder="자동 입력됨"
                     />
                   </div>
                 </div>
+
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowExtraIndicators(prev => !prev)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    {showExtraIndicators ? '접기' : '더보기'}
+                    {showExtraIndicators ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+                  </Button>
+                </div>
+
+                {showExtraIndicators && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">GDPNow (미국)</Label>
+                      <Input
+                        value={formData.psychologyCheck?.gdpNow || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, gdpNow: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">High Yield Spread</Label>
+                      <Input
+                        value={formData.psychologyCheck?.highYieldSpread || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, highYieldSpread: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">Fed 금리 동결 확률</Label>
+                      <Input
+                        value={formData.psychologyCheck?.fedFundsProbability || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, fedFundsProbability: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="수동 입력"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">실업률</Label>
+                      <Input
+                        value={formData.psychologyCheck?.unemploymentRate || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, unemploymentRate: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">M2 유동성</Label>
+                      <Input
+                        value={formData.psychologyCheck?.m2MoneySupply || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, m2MoneySupply: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">마진 부채</Label>
+                      <Input
+                        value={formData.psychologyCheck?.marginDebt || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, marginDebt: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-slate-400 text-xs">신용잔고비율</Label>
+                      <Input
+                        value={formData.psychologyCheck?.marginRatio || ''}
+                        onChange={(e) => setFormData(prev => ({
+                          ...prev,
+                          psychologyCheck: { ...prev.psychologyCheck, marginRatio: e.target.value }
+                        }))}
+                        className="bg-slate-800 border-slate-700 text-white"
+                        placeholder="자동 입력됨"
+                      />
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </section>

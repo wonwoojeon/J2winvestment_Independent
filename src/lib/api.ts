@@ -50,43 +50,83 @@ export async function getAccurateExchangeRate(): Promise<number> {
   }
 }
 
+const FRED_BASE_URL = '/api/fred';
+
+const buildFredUrl = (params: Record<string, string>) => {
+  const url = new URL(FRED_BASE_URL, window.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+  return url.toString();
+};
+
+const subtractDays = (dateStr: string, days: number) => {
+  const date = new Date(dateStr);
+  date.setDate(date.getDate() - days);
+  return date.toISOString().split('T')[0];
+};
+
+type FredObservation = {
+  date: string;
+  value: string;
+};
+
+const fetchFredSeriesObservations = async (seriesId: string, params: Record<string, string>) => {
+  const url = buildFredUrl({ series_id: seriesId, ...params });
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`FRED API error: ${response.status}`);
+  }
+  const text = await response.text();
+  const data = JSON.parse(text) as { observations?: FredObservation[] };
+  if (!data.observations) {
+    throw new Error('FRED observations missing');
+  }
+  return data.observations;
+};
+
+const getLatestNumericObservation = (observations: FredObservation[]) => {
+  for (const observation of observations) {
+    const value = parseFloat(observation.value);
+    if (!Number.isNaN(value)) {
+      return { value, date: observation.date };
+    }
+  }
+  return null;
+};
+
+const fetchFredSeriesValueByDate = async (seriesId: string, date: string, lookbackDays = 120) => {
+  const observationStart = subtractDays(date, lookbackDays);
+  const observations = await fetchFredSeriesObservations(seriesId, {
+    observation_start: observationStart,
+    observation_end: date,
+    sort_order: 'desc',
+    limit: '10'
+  });
+  return getLatestNumericObservation(observations)?.value ?? null;
+};
+
+const formatPercent = (value: number, decimals = 2) => `${value.toFixed(decimals)}%`;
+const formatNumber = (value: number, decimals = 2) => value.toFixed(decimals);
+
 // 🔥 FRED API를 통한 M2 통화공급량 데이터 가져오기
-export async function getFredM2MoneySupply(): Promise<string> {
+export async function getFredM2MoneySupply(targetDate?: string): Promise<string> {
   try {
-    console.log('📊 FRED M2 데이터 요청 시작...');
-    
-    // FRED API - M2 Money Supply (M2SL 시리즈)
-    // 데모 키 사용 시 제한이 있을 수 있으므로 실패 시 현실적인 시뮬레이션 값 반환
-    const fredUrl = 'https://api.stlouisfed.org/fred/series/observations?series_id=M2SL&api_key=demo&file_type=json&limit=1&sort_order=desc';
-    
-    const response = await fetch(fredUrl);
-    
-    if (!response.ok) {
-        throw new Error('FRED API 응답 오류');
+    const date = targetDate || new Date().toISOString().split('T')[0];
+    const m2Value = await fetchFredSeriesValueByDate('M2SL', date, 365);
+    if (m2Value === null) {
+      throw new Error('FRED M2 데이터 파싱 실패');
     }
 
-    const data = await response.json();
-    
-    if (data.observations && data.observations.length > 0) {
-      const latestObservation = data.observations[0];
-      const m2Value = parseFloat(latestObservation.value);
-      
-      if (!isNaN(m2Value)) {
-        // 단위: 십억 달러를 조 달러로 변환
-        const m2InTrillions = (m2Value / 1000).toFixed(1);
-        return `${m2InTrillions}조 달러`;
-      }
-    }
-    
-    throw new Error('FRED M2 데이터 파싱 실패');
+    const m2InTrillions = (m2Value / 1000).toFixed(1);
+    return `${m2InTrillions}조 달러`;
   } catch (error) {
-    console.warn('⚠️ FRED M2 데이터 가져오기 실패 (데모 키 제한 가능성), 최신 추정치 사용:', error);
-    
-    // 2024-2025년 기준 현실적인 M2 추정치 (약 20.8 ~ 21.5조 달러 사이)
+    console.warn('⚠️ FRED M2 데이터 가져오기 실패, 최신 추정치 사용:', error);
+
     const baseM2 = 21.0;
     const randomVariation = (Math.random() * 0.4) - 0.2; // ±0.2
     const estimatedM2 = (baseM2 + randomVariation).toFixed(1);
-    
+
     return `${estimatedM2}조 달러 (추정)`;
   }
 }
@@ -120,6 +160,86 @@ export async function getMarginDebtData(): Promise<{ marginDebt: string; marginR
   }
 }
 
+const CNN_FEAR_GREED_URL = 'https://r.jina.ai/http://production.dataviz.cnn.io/index/fearandgreed/graphdata/2024-01-01';
+
+const parseCnnJson = (text: string) => {
+  const marker = 'Markdown Content:';
+  const jsonText = text.includes(marker) ? text.split(marker).slice(1).join(marker).trim() : text.trim();
+  return JSON.parse(jsonText);
+};
+
+const getHistoricalValueForDate = (data: Array<{ x?: number; y?: number }> | undefined, date: string) => {
+  if (!Array.isArray(data) || data.length === 0) return null;
+  const targetTime = new Date(date).getTime();
+  let closest = null as { time: number; value: number } | null;
+
+  for (const point of data) {
+    const time = typeof point.x === 'number' ? point.x : null;
+    const value = typeof point.y === 'number' ? point.y : null;
+    if (time === null || value === null) continue;
+    if (time <= targetTime && (!closest || time > closest.time)) {
+      closest = { time, value };
+    }
+  }
+
+  if (!closest) {
+    const first = data[0];
+    if (typeof first?.y === 'number') return first.y;
+  }
+
+  return closest?.value ?? null;
+};
+
+const fetchCnnSentimentData = async (date: string) => {
+  const response = await fetch(CNN_FEAR_GREED_URL);
+  if (!response.ok) {
+    throw new Error(`CNN proxy error: ${response.status}`);
+  }
+  const text = await response.text();
+  const data = parseCnnJson(text);
+
+  const fearGreedValue = getHistoricalValueForDate(data?.fear_and_greed_historical?.data, date);
+  const putCallValue = getHistoricalValueForDate(data?.put_call_options?.data, date);
+
+  return {
+    fearGreedIndex: typeof fearGreedValue === 'number' ? Math.round(fearGreedValue) : null,
+    putCallRatio: typeof putCallValue === 'number' ? formatNumber(putCallValue, 2) : null
+  };
+};
+
+const fetchSp500Rsi = async (date: string, period = 14) => {
+  const observationStart = subtractDays(date, 120);
+  const observations = await fetchFredSeriesObservations('SP500', {
+    observation_start: observationStart,
+    observation_end: date,
+    sort_order: 'asc',
+    limit: '200'
+  });
+  const values = observations
+    .map((item) => parseFloat(item.value))
+    .filter((value) => !Number.isNaN(value));
+
+  if (values.length < period + 1) return null;
+
+  let gains = 0;
+  let losses = 0;
+  for (let i = values.length - period; i < values.length; i += 1) {
+    const diff = values[i] - values[i - 1];
+    if (diff >= 0) {
+      gains += diff;
+    } else {
+      losses += Math.abs(diff);
+    }
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+};
+
 // 암호화폐 가격 정보 가져오기 (CoinGecko API 사용)
 export async function getCryptoPrices(symbols: string[]): Promise<Record<string, number>> {
   try {
@@ -145,76 +265,118 @@ export async function getCryptoPrices(symbols: string[]): Promise<Record<string,
 }
 
 // 🔥 통합 심리지표 데이터 가져오기 함수 (개선됨)
-export async function fetchComprehensivePsychologyData(): Promise<{
+export async function fetchComprehensivePsychologyData(targetDate?: string): Promise<{
   fearGreedIndex: number;
   m2MoneySupply: string;
   marginDebt: string;
   marginRatio: string;
+  vixIndex?: string;
+  putCallRatio?: string;
+  sp500Rsi14?: string;
+  dxyIndex?: string;
+  us10yYield?: string;
+  gdpNow?: string;
+  highYieldSpread?: string;
+  fedFundsProbability?: string;
+  unemploymentRate?: string;
 }> {
   try {
     console.log('🧠 통합 심리지표 데이터 수집 시작...');
-    
-    // 병렬로 모든 데이터 요청 (Promise.allSettled로 하나가 실패해도 나머지는 진행)
-    const [fearGreedResult, m2Result, marginResult] = await Promise.allSettled([
-      // CNN Fear & Greed Index - Proxy를 통해 우회 접속
-      fetch('https://api.allorigins.win/raw?url=https://production.dataviz.cnn.io/index/fearandgreed/graphdata/2024-01-01')
-        .then(async res => {
-          if (!res.ok) throw new Error('CNN API Proxy Error');
-          return res.json();
-        }),
-      // M2 Money Supply
-      getFredM2MoneySupply(),
-      // Margin Debt Data
-      getMarginDebtData()
+    const date = targetDate || new Date().toISOString().split('T')[0];
+
+    const [
+      cnnResult,
+      m2Result,
+      marginResult,
+      vixResult,
+      us10yResult,
+      highYieldResult,
+      gdpNowResult,
+      dxyResult,
+      unemploymentResult,
+      sp500RsiResult
+    ] = await Promise.allSettled([
+      fetchCnnSentimentData(date),
+      getFredM2MoneySupply(date),
+      getMarginDebtData(),
+      fetchFredSeriesValueByDate('VIXCLS', date),
+      fetchFredSeriesValueByDate('DGS10', date),
+      fetchFredSeriesValueByDate('BAMLH0A0HYM2', date),
+      fetchFredSeriesValueByDate('GDPNOW', date, 365),
+      fetchFredSeriesValueByDate('DTWEXBGS', date),
+      fetchFredSeriesValueByDate('UNRATE', date, 365),
+      fetchSp500Rsi(date)
     ]);
-    
-    // 1. Fear & Greed Index 처리 (CNN 데이터 우선)
+
     let fearGreedIndex = 50;
-    
-    if (fearGreedResult.status === 'fulfilled' && fearGreedResult.value?.fear_and_greed?.score) {
-      // CNN 데이터 파싱 성공
-      fearGreedIndex = Math.round(fearGreedResult.value.fear_and_greed.score);
-      console.log('✅ CNN Fear & Greed Index:', fearGreedIndex);
+    let putCallRatio: string | undefined;
+
+    if (cnnResult.status === 'fulfilled') {
+      if (typeof cnnResult.value.fearGreedIndex === 'number') {
+        fearGreedIndex = cnnResult.value.fearGreedIndex;
+      }
+      if (cnnResult.value.putCallRatio) {
+        putCallRatio = cnnResult.value.putCallRatio;
+      }
     } else {
       console.warn('⚠️ CNN Fear & Greed Index 가져오기 실패, Alternative.me 시도');
-      
-      // CNN 실패 시 암호화폐 공포탐욕지수로 폴백 시도
       try {
         const cryptoRes = await fetch('https://api.alternative.me/fng/?limit=1&format=json');
         const cryptoData = await cryptoRes.json();
         if (cryptoData?.data?.[0]?.value) {
           fearGreedIndex = parseInt(cryptoData.data[0].value);
-          console.log('⚠️ Crypto Fear & Greed Index 사용:', fearGreedIndex);
         }
-      } catch (e) {
+      } catch (error) {
         console.error('❌ 모든 Fear & Greed Index 가져오기 실패');
       }
     }
-    
-    // 2. M2 데이터 처리
-    const m2MoneySupply = m2Result.status === 'fulfilled' 
-      ? m2Result.value 
-      : '21.0조 달러 (추정)';
-    
-    // 3. 마진 데이터 처리
-    const marginInfo = marginResult.status === 'fulfilled' 
-      ? marginResult.value 
+
+    const m2MoneySupply = m2Result.status === 'fulfilled' ? m2Result.value : '21.0조 달러 (추정)';
+    const marginInfo = marginResult.status === 'fulfilled'
+      ? marginResult.value
       : { marginDebt: '780십억 달러 (추정)', marginRatio: '1.75% (추정)' };
-    
+
+    const vixIndex = vixResult.status === 'fulfilled' && vixResult.value !== null
+      ? formatNumber(vixResult.value, 2)
+      : undefined;
+    const us10yYield = us10yResult.status === 'fulfilled' && us10yResult.value !== null
+      ? formatPercent(us10yResult.value, 2)
+      : undefined;
+    const highYieldSpread = highYieldResult.status === 'fulfilled' && highYieldResult.value !== null
+      ? formatPercent(highYieldResult.value, 2)
+      : undefined;
+    const gdpNow = gdpNowResult.status === 'fulfilled' && gdpNowResult.value !== null
+      ? formatPercent(gdpNowResult.value, 2)
+      : undefined;
+    const dxyIndex = dxyResult.status === 'fulfilled' && dxyResult.value !== null
+      ? formatNumber(dxyResult.value, 2)
+      : undefined;
+    const unemploymentRate = unemploymentResult.status === 'fulfilled' && unemploymentResult.value !== null
+      ? formatPercent(unemploymentResult.value, 1)
+      : undefined;
+    const sp500Rsi14 = sp500RsiResult.status === 'fulfilled' && sp500RsiResult.value !== null
+      ? formatNumber(sp500RsiResult.value, 1)
+      : undefined;
+
     const result = {
       fearGreedIndex,
       m2MoneySupply,
       marginDebt: marginInfo.marginDebt,
-      marginRatio: marginInfo.marginRatio
+      marginRatio: marginInfo.marginRatio,
+      vixIndex,
+      putCallRatio,
+      sp500Rsi14,
+      dxyIndex,
+      us10yYield,
+      gdpNow,
+      highYieldSpread,
+      unemploymentRate
     };
-    
+
     console.log('✅ 통합 심리지표 데이터 수집 완료:', result);
     return result;
-    
   } catch (error) {
     console.error('❌ 통합 심리지표 데이터 수집 실패:', error);
-    
-    // 최악의 경우 백업 데이터 반환
     return {
       fearGreedIndex: 50,
       m2MoneySupply: '21.0조 달러 (추정)',

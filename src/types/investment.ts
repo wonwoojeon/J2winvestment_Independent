@@ -16,6 +16,15 @@ export interface PsychologyCheck {
   m2MoneySupply?: string;
   marginDebt?: string; // 🔥 신용잔고(마진 부채) 추가
   marginRatio?: string; // 🔥 신용잔고비율 추가
+  vixIndex?: string;
+  putCallRatio?: string;
+  sp500Rsi14?: string;
+  dxyIndex?: string;
+  us10yYield?: string;
+  gdpNow?: string;
+  highYieldSpread?: string;
+  fedFundsProbability?: string;
+  unemploymentRate?: string;
   marketSentiments?: string[];
 }
 
