@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import JournalForm from '../components/JournalForm';
 import { JournalDetail } from '../components/JournalDetail';
@@ -17,11 +17,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { 
   User, 
   Settings, 
   Search, 
   LogOut, 
+  Plus,
   PlusCircle, 
   TrendingUp, 
   Calendar,
@@ -31,8 +33,11 @@ import {
   Brain,
   Menu,
   X,
+  ChevronDown,
+  ChevronUp,
   ChevronRight,
-  MessageSquare
+  MessageSquare,
+  CheckCircle2
 } from 'lucide-react';
 
 // 통화 포맷팅
@@ -166,6 +171,213 @@ const DashboardBibleVerseTicker: React.FC = () => {
           animation-play-state: paused;
         }
       `}</style>
+    </div>
+  );
+};
+
+type TodoItem = {
+  id: string;
+  text: string;
+  createdAt: string;
+  completedAt?: string | null;
+};
+
+const formatTodoDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+};
+
+const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
+  const storageKey = useMemo(() => `dashboard_todos_${userId || 'guest'}`, [userId]);
+  const [items, setItems] = useState<TodoItem[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+  const [inputValue, setInputValue] = useState('');
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as TodoItem[];
+        if (Array.isArray(parsed)) {
+          setItems(parsed);
+        }
+      } catch (error) {
+        console.error('❌ 투두 리스트 로드 실패:', error);
+      }
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [items, storageKey]);
+
+  useEffect(() => {
+    if (showInput) {
+      inputRef.current?.focus();
+    }
+  }, [showInput, isOpen]);
+
+  const activeItems = items
+    .filter((item) => !item.completedAt)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const completedItems = items
+    .filter((item) => item.completedAt)
+    .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
+
+  const handleAddItem = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
+    const nextItem: TodoItem = {
+      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+      text: trimmed,
+      createdAt: new Date().toISOString(),
+      completedAt: null
+    };
+    setItems((prev) => [...prev, nextItem]);
+    setInputValue('');
+    setShowInput(false);
+    setIsOpen(true);
+  };
+
+  const handleToggleComplete = (id: string, checked: boolean) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? { ...item, completedAt: checked ? new Date().toISOString() : null }
+          : item
+      )
+    );
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-900/60 shadow-lg">
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+          <span className="text-slate-100 font-semibold">투두 리스트</span>
+          <span className="text-xs text-slate-500">
+            진행 {activeItems.length} · 완료 {completedItems.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-slate-300 hover:bg-slate-800"
+            onClick={() => {
+              setIsOpen(true);
+              setShowInput(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-slate-300 hover:text-white hover:bg-slate-800"
+            onClick={() => setIsOpen((prev) => !prev)}
+          >
+            {isOpen ? '접기' : '펼치기'}
+            {isOpen ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+          </Button>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="px-4 pb-4 space-y-3">
+          {showInput && (
+            <div className="flex items-center gap-2">
+              <Input
+                ref={inputRef}
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddItem();
+                  }
+                  if (e.key === 'Escape') {
+                    setShowInput(false);
+                    setInputValue('');
+                  }
+                }}
+                placeholder="할 일을 입력하세요"
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+              <Button
+                type="button"
+                className="bg-emerald-600 hover:bg-emerald-700"
+                onClick={handleAddItem}
+              >
+                추가
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {activeItems.length === 0 ? (
+              <div className="text-sm text-slate-500">지금은 할 일이 없어요.</div>
+            ) : (
+              activeItems.map((item) => (
+                <label
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200"
+                >
+                  <input
+                    type="checkbox"
+                    checked={Boolean(item.completedAt)}
+                    onChange={(e) => handleToggleComplete(item.id, e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50"
+                  />
+                  <span className="flex-1">{item.text}</span>
+                  <span className="text-xs text-slate-500">
+                    {formatTodoDate(item.createdAt)}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className="border-t border-slate-800 pt-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200"
+              onClick={() => setCompletedOpen((prev) => !prev)}
+            >
+              완료 목록 {completedItems.length}개
+              {completedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+
+            {completedOpen && (
+              <div className="mt-3 space-y-2">
+                {completedItems.length === 0 ? (
+                  <div className="text-sm text-slate-500">완료된 항목이 없습니다.</div>
+                ) : (
+                  completedItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-400 line-through"
+                    >
+                      <span className="flex-1">{item.text}</span>
+                      {item.completedAt && (
+                        <span className="text-xs text-slate-500">
+                          완료 {formatTodoDate(item.completedAt)}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -741,6 +953,8 @@ function Index() {
         <div className="rounded-xl overflow-hidden shadow-lg border border-slate-800">
           <DashboardBibleVerseTicker />
         </div>
+
+        <DashboardTodoList userId={user?.id} />
 
         {/* 리스크 스냅샷 */}
         <RiskSnapshot journal={latestJournal} exchangeRate={exchangeRate} />
