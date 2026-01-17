@@ -517,7 +517,7 @@ function Index() {
                 <TrendingUp className="w-12 h-12 text-blue-500" />
               </div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                투자 매매일지
+                빛의경제 투자 매매일지
               </h1>
               <p className="text-slate-400 text-lg">
                 성공적인 투자를 위한 체계적인 기록과 분석
@@ -603,8 +603,8 @@ function Index() {
             <div className="bg-blue-600 p-1.5 rounded-lg">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent hidden sm:block">
-              투자 매매일지
+            <h1 className="text-base sm:text-xl font-bold text-slate-100 sm:bg-gradient-to-r sm:from-white sm:to-slate-400 sm:bg-clip-text sm:text-transparent truncate max-w-[140px] sm:max-w-none whitespace-nowrap">
+              빛의경제 투자 매매일지
             </h1>
           </div>
           
