@@ -194,6 +194,9 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
   const [completedOpen, setCompletedOpen] = useState(false);
   const [showInput, setShowInput] = useState(false);
   const [inputValue, setInputValue] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editDate, setEditDate] = useState('');
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -254,12 +257,45 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
     );
   };
 
+  const startEditing = (item: TodoItem) => {
+    setEditingId(item.id);
+    setEditText(item.text);
+    const completedDate = item.completedAt
+      ? item.completedAt.split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    setEditDate(completedDate);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingId) return;
+    const trimmed = editText.trim();
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === editingId
+          ? {
+              ...item,
+              text: trimmed || item.text,
+              completedAt: editDate ? new Date(editDate).toISOString() : item.completedAt
+            }
+          : item
+      )
+    );
+    setEditingId(null);
+  };
+
+  const handleDeleteItem = (id: string) => {
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    if (editingId === id) {
+      setEditingId(null);
+    }
+  };
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/60 shadow-lg">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-          <span className="text-slate-100 font-semibold">투두 리스트</span>
+          <span className="text-slate-100 font-semibold">To do List</span>
           <span className="text-xs text-slate-500">
             진행 {activeItems.length} · 완료 {completedItems.length}
           </span>
@@ -362,13 +398,61 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
                   completedItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-400 line-through"
+                      className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-400"
                     >
-                      <span className="flex-1">{item.text}</span>
-                      {item.completedAt && (
-                        <span className="text-xs text-slate-500">
-                          완료 {formatTodoDate(item.completedAt)}
-                        </span>
+                      {editingId === item.id ? (
+                        <div className="space-y-2">
+                          <Input
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            className="bg-slate-800 border-slate-700 text-white"
+                          />
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="date"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                              className="bg-slate-800 border-slate-700 text-white"
+                            />
+                            <Button
+                              type="button"
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              onClick={handleSaveEdit}
+                            >
+                              저장
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                              onClick={() => setEditingId(null)}
+                            >
+                              취소
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+                              onClick={() => handleDeleteItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              삭제
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-3 text-left"
+                          onClick={() => startEditing(item)}
+                        >
+                          <span className="flex-1 line-through">{item.text}</span>
+                          {item.completedAt && (
+                            <span className="text-xs text-slate-500">
+                              완료 {formatTodoDate(item.completedAt)}
+                            </span>
+                          )}
+                        </button>
                       )}
                     </div>
                   ))
