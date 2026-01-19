@@ -182,6 +182,13 @@ type TodoItem = {
   completedAt?: string | null;
 };
 
+type TodoRow = {
+  id: string;
+  text: string;
+  created_at: string;
+  completed_at: string | null;
+};
+
 const formatTodoDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
@@ -197,22 +204,62 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
   const [editDate, setEditDate] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved) as TodoItem[];
-        if (Array.isArray(parsed)) {
-          setItems(parsed);
+    const loadLocalItems = () => {
+      if (typeof window === 'undefined') return;
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as TodoItem[];
+          if (Array.isArray(parsed)) {
+            setItems(parsed);
+          }
+        } catch (error) {
+          console.error('❌ 투두 리스트 로드 실패:', error);
         }
-      } catch (error) {
-        console.error('❌ 투두 리스트 로드 실패:', error);
       }
+    };
+
+    const loadRemoteItems = async () => {
+      if (!userId) return;
+      setLoading(true);
+      setSyncError(null);
+      try {
+        const { data, error } = await supabase
+          .from('dashboard_todos')
+          .select('id, text, created_at, completed_at')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        const rows = (data || []) as TodoRow[];
+        setItems(
+          rows.map((row) => ({
+            id: row.id,
+            text: row.text,
+            createdAt: row.created_at,
+            completedAt: row.completed_at
+          }))
+        );
+      } catch (error) {
+        console.error('❌ 투두 리스트 동기화 실패:', error);
+        setSyncError('동기화 실패');
+        loadLocalItems();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    setItems([]);
+    if (userId) {
+      loadRemoteItems();
+    } else {
+      loadLocalItems();
     }
-  }, [storageKey]);
+  }, [storageKey, userId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -232,29 +279,77 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
     .filter((item) => item.completedAt)
     .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
 
-  const handleAddItem = () => {
+  const handleAddItem = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
-    const nextItem: TodoItem = {
-      id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-      text: trimmed,
-      createdAt: new Date().toISOString(),
-      completedAt: null
-    };
-    setItems((prev) => [...prev, nextItem]);
-    setInputValue('');
-    setShowInput(false);
-    setIsOpen(true);
+    if (!userId) {
+      const nextItem: TodoItem = {
+        id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+        text: trimmed,
+        createdAt: new Date().toISOString(),
+        completedAt: null
+      };
+      setItems((prev) => [...prev, nextItem]);
+      setInputValue('');
+      setShowInput(false);
+      setIsOpen(true);
+      return;
+    }
+
+    try {
+      setSyncError(null);
+      const { data, error } = await supabase
+        .from('dashboard_todos')
+        .insert({
+          user_id: userId,
+          text: trimmed,
+          created_at: new Date().toISOString(),
+          completed_at: null
+        })
+        .select('id, text, created_at, completed_at')
+        .single();
+      if (error) throw error;
+      const row = data as TodoRow;
+      setItems((prev) => [
+        ...prev,
+        {
+          id: row.id,
+          text: row.text,
+          createdAt: row.created_at,
+          completedAt: row.completed_at
+        }
+      ]);
+      setInputValue('');
+      setShowInput(false);
+      setIsOpen(true);
+    } catch (error) {
+      console.error('❌ 투두 추가 실패:', error);
+      setSyncError('추가 실패');
+    }
   };
 
-  const handleToggleComplete = (id: string, checked: boolean) => {
+  const handleToggleComplete = async (id: string, checked: boolean) => {
+    const completedAt = checked ? new Date().toISOString() : null;
     setItems((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, completedAt: checked ? new Date().toISOString() : null }
+          ? { ...item, completedAt }
           : item
       )
     );
+    if (!userId) return;
+    try {
+      setSyncError(null);
+      const { error } = await supabase
+        .from('dashboard_todos')
+        .update({ completed_at: completedAt })
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('❌ 완료 상태 업데이트 실패:', error);
+      setSyncError('업데이트 실패');
+    }
   };
 
   const startEditing = (item: TodoItem) => {
@@ -266,27 +361,63 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
     setEditDate(completedDate);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingId) return;
+    const currentItem = items.find((item) => item.id === editingId);
+    if (!currentItem) return;
     const trimmed = editText.trim();
+    const nextText = trimmed || currentItem.text;
+    const nextCompletedAt = editDate
+      ? new Date(editDate).toISOString()
+      : currentItem.completedAt;
     setItems((prev) =>
       prev.map((item) =>
         item.id === editingId
           ? {
               ...item,
-              text: trimmed || item.text,
-              completedAt: editDate ? new Date(editDate).toISOString() : item.completedAt
+              text: nextText,
+              completedAt: nextCompletedAt
             }
           : item
       )
     );
+    if (userId) {
+      try {
+        setSyncError(null);
+        const { error } = await supabase
+          .from('dashboard_todos')
+          .update({
+            text: nextText,
+            completed_at: nextCompletedAt
+          })
+          .eq('id', editingId)
+          .eq('user_id', userId);
+        if (error) throw error;
+      } catch (error) {
+        console.error('❌ 완료 항목 수정 실패:', error);
+        setSyncError('수정 실패');
+      }
+    }
     setEditingId(null);
   };
 
-  const handleDeleteItem = (id: string) => {
+  const handleDeleteItem = async (id: string) => {
     setItems((prev) => prev.filter((item) => item.id !== id));
     if (editingId === id) {
       setEditingId(null);
+    }
+    if (!userId) return;
+    try {
+      setSyncError(null);
+      const { error } = await supabase
+        .from('dashboard_todos')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', userId);
+      if (error) throw error;
+    } catch (error) {
+      console.error('❌ 완료 항목 삭제 실패:', error);
+      setSyncError('삭제 실패');
     }
   };
 
@@ -296,6 +427,8 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           <span className="text-slate-100 font-semibold">To do List</span>
+          {loading && <span className="text-xs text-slate-500">동기화 중...</span>}
+          {syncError && <span className="text-xs text-rose-400">{syncError}</span>}
           <span className="text-xs text-slate-500">
             진행 {activeItems.length} · 완료 {completedItems.length}
           </span>
