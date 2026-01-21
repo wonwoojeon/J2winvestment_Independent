@@ -70,6 +70,62 @@ const formatKoreanCurrency = (amount: number): string => {
   return isNegative ? `-${result}` : result;
 };
 
+const formatSimpleCurrency = (amount: number): string => {
+  return Math.round(amount).toLocaleString('ko-KR');
+};
+
+const buildStockLine = (
+  label: string,
+  stocks: { symbol?: string; price?: number; quantity?: number }[] | undefined,
+  exchangeRate: number,
+  priceInUsd: boolean
+): string => {
+  if (!stocks || stocks.length === 0) return `${label}: 없음`;
+  const items = stocks
+    .map((stock) => {
+      const price = Number(stock?.price) || 0;
+      const quantity = Number(stock?.quantity) || 0;
+      const value = price * quantity * (priceInUsd ? exchangeRate : 1);
+      return {
+        value,
+        text: `${stock?.symbol || 'N/A'} ${formatKoreanCurrency(value)} (${quantity}주 x ${priceInUsd ? '$' : ''}${formatSimpleCurrency(price)})`
+      };
+    })
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
+  return `${label}: ${items.map((item) => item.text).join(' | ')}`;
+};
+
+const buildAssetPromptDetails = (journal: InvestmentJournal | null, exchangeRate: number): string => {
+  if (!journal) return '자산 정보 없음';
+  const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
+  const foreignTotal =
+    (journal.foreignStocks || []).reduce(
+      (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+      0
+    ) * effectiveRate;
+  const domesticTotal = (journal.domesticStocks || []).reduce(
+    (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+    0
+  );
+  const cryptoTotal =
+    (journal.cryptocurrency || []).reduce(
+      (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+      0
+    ) * effectiveRate;
+  const cashKrw = Number(journal.cash?.krw) || 0;
+  const cashUsd = Number(journal.cash?.usd) || 0;
+  const cashTotal = cashKrw + cashUsd * effectiveRate;
+
+  const totals = `자산 합계: 해외주식 ${formatKoreanCurrency(foreignTotal)}, 국내주식 ${formatKoreanCurrency(domesticTotal)}, 크립토 ${formatKoreanCurrency(cryptoTotal)}, 현금 ${formatKoreanCurrency(cashTotal)}`;
+  const cashLine = `현금 상세: KRW ${formatKoreanCurrency(cashKrw)} / USD ${formatSimpleCurrency(cashUsd)} (원화환산 ${formatKoreanCurrency(cashUsd * effectiveRate)})`;
+  const foreignLine = buildStockLine('해외주식 상위', journal.foreignStocks || [], effectiveRate, true);
+  const domesticLine = buildStockLine('국내주식 상위', journal.domesticStocks || [], effectiveRate, false);
+  const cryptoLine = buildStockLine('크립토 상위', journal.cryptocurrency || [], effectiveRate, true);
+
+  return [totals, cashLine, foreignLine, domesticLine, cryptoLine].join('\n');
+};
+
 const hashString = (value: string): string => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -1045,6 +1101,10 @@ function Index() {
   };
 
   const recentJournalsSummary = useMemo(() => buildRecentJournalsSummary(30), [journals]);
+  const latestAssetDetails = useMemo(
+    () => buildAssetPromptDetails(latestJournal, exchangeRate),
+    [latestJournal, exchangeRate]
+  );
 
   const fetchAiCache = async (cacheKey: string | null, cacheType: AiCacheType) => {
     if (!cacheKey || !user?.id) return null;
@@ -1107,10 +1167,11 @@ function Index() {
       totalAssets: latestJournal.totalAssets,
       psychology: latestJournal.psychologyCheck ?? {},
       memo: memoText || '',
-      stance: stanceCard?.stance || ''
+      stance: stanceCard?.stance || '',
+      assets: latestAssetDetails
     });
     return `j2w_ai_summary_${user.id}_${hashString(payload)}`;
-  }, [user?.id, latestJournal, stanceCard?.stance]);
+  }, [user?.id, latestJournal, stanceCard?.stance, latestAssetDetails]);
 
   const summarySourceHash = useMemo(() => {
     if (!latestJournal) return '';
@@ -1121,21 +1182,22 @@ function Index() {
       totalAssets: latestJournal.totalAssets,
       psychology: latestJournal.psychologyCheck ?? {},
       memo: memoText || '',
-      stance: stanceCard?.stance || ''
+      stance: stanceCard?.stance || '',
+      assets: latestAssetDetails
     });
     return hashString(payload);
-  }, [latestJournal, stanceCard?.stance]);
+  }, [latestJournal, stanceCard?.stance, latestAssetDetails]);
 
   const reflectionCacheKey = useMemo(() => {
     if (!user?.id || journals.length === 0) return null;
-    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}`;
+    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}|${latestAssetDetails}`;
     return `j2w_ai_reflection_${user.id}_${hashString(payload)}`;
-  }, [user?.id, journals.length, recentJournalsSummary, stanceCard?.stance]);
+  }, [user?.id, journals.length, recentJournalsSummary, stanceCard?.stance, latestAssetDetails]);
 
   const reflectionSourceHash = useMemo(() => {
-    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}`;
+    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}|${latestAssetDetails}`;
     return hashString(payload);
-  }, [recentJournalsSummary, stanceCard?.stance]);
+  }, [recentJournalsSummary, stanceCard?.stance, latestAssetDetails]);
 
   useEffect(() => {
     let active = true;
@@ -1219,9 +1281,9 @@ function Index() {
 
       <Card className="bg-slate-900 border-slate-800 shadow-lg">
         <CardContent className="p-4 space-y-3">
-          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2">
             <div>
-              <div className="text-sm text-slate-400">GPT 3문장 요약</div>
+              <div className="text-sm text-slate-400">GPT 요약 (4줄)</div>
               <div className="text-lg font-semibold text-slate-100">핵심 전략 · 위험 · 심리</div>
             </div>
             <Button
@@ -1253,7 +1315,7 @@ function Index() {
                     },
                     {
                       role: 'user' as const,
-                      content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}`
+                      content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}\n자산 상세:\n${latestAssetDetails}`
                     }
                   ];
                   const res = await callOpenAiProxy(messages, {
@@ -1318,7 +1380,7 @@ function Index() {
                     },
                     {
                       role: 'user' as const,
-                      content: `최근 30일 일지 요약:\n${recentJournalsSummary}\n현재 스탠스: ${stance}`
+                      content: `최근 30일 일지 요약:\n${recentJournalsSummary}\n현재 스탠스: ${stance}\n최근 일지 자산 상세:\n${latestAssetDetails}`
                     }
                   ];
                   const res = await callOpenAiProxy(messages, {
