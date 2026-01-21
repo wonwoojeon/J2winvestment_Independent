@@ -697,6 +697,8 @@ function Index() {
   const [coreAlerts, setCoreAlerts] = useState<string[]>([]);
   const [summaryText, setSummaryText] = useState<string>('');
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [reflectionText, setReflectionText] = useState<string>('');
+  const [reflectionLoading, setReflectionLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -967,6 +969,20 @@ function Index() {
     if (dxy && dxy > 105) alerts.push(`DXY ${dxy.toFixed(1)}: 달러 강세, 위험자산 압박 주의`);
     setCoreAlerts(alerts);
   }, [latestJournal, exchangeRate]);
+
+  const buildRecentJournalsSummary = (days: number) => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const selected = journals.filter((j) => new Date(j.date) >= cutoff);
+    if (!selected.length) return '최근 기간에 일지가 없습니다.';
+    return selected
+      .slice(0, 15)
+      .map((j) => {
+        const memoText = getMemoText(j.memo);
+        return `- 날짜 ${j.date}, 총자산 ${j.totalAssets}, F&G ${j.psychologyCheck?.fearGreedIndex ?? '-'}, 메모 ${memoText || '없음'}`;
+      })
+      .join('\n');
+  };
 
   if (loading) {
     return (
@@ -1343,6 +1359,53 @@ function Index() {
             </div>
             <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
               {summaryText || '버튼을 눌러 최신 일지 기반 요약을 생성하세요.'}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-900 border-slate-800 shadow-lg">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm text-slate-400">월간 리플렉션 (최근 30일)</div>
+                <div className="text-lg font-semibold text-slate-100">착오 TOP3 / 개선 포인트</div>
+              </div>
+              <Button
+                type="button"
+                onClick={async () => {
+                  setReflectionLoading(true);
+                  try {
+                    const journalSummary = buildRecentJournalsSummary(30);
+                    const stance = stanceCard?.stance || '중립';
+                    const messages = [
+                      {
+                        role: 'system' as const,
+                        content:
+                          '너는 투자 리플렉션 코치다. 입력된 최근 30일 일지 요약을 보고 (1) 착오/실수 Top3, (2) 심리/시나리오 과몰입 여부, (3) 다음 달 액션 3가지를 bullet로 제시하라. 각 항목은 짧고 실행 가능하게 작성하라.'
+                      },
+                      {
+                        role: 'user' as const,
+                        content: `최근 30일 일지 요약:\n${journalSummary}\n현재 스탠스: ${stance}`
+                      }
+                    ];
+                    const res = await callOpenAiProxy(messages, { max_tokens: 320 });
+                    const content = res?.choices?.[0]?.message?.content || '리플렉션을 생성하지 못했습니다.';
+                    setReflectionText(content);
+                  } catch (error) {
+                    console.error('리플렉션 생성 실패:', error);
+                    setReflectionText('리플렉션 생성 실패. 잠시 후 다시 시도해주세요.');
+                  } finally {
+                    setReflectionLoading(false);
+                  }
+                }}
+                disabled={reflectionLoading || journals.length === 0}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {reflectionLoading ? '생성 중...' : '리플렉션 생성'}
+              </Button>
+            </div>
+            <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[80px]">
+              {reflectionText || '최근 30일 일지를 바탕으로 월간 리플렉션을 생성합니다.'}
             </div>
           </CardContent>
         </Card>
