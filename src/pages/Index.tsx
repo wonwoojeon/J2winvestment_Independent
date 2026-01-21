@@ -202,6 +202,19 @@ const formatTodoDate = (dateStr: string) => {
   return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 };
 
+type MacroEvent = {
+  name: string;
+  date: string; // YYYY-MM-DD
+  type: 'FOMC' | 'CPI' | 'EARNINGS' | 'OTHER';
+};
+
+// 간단한 이벤트 캘린더 (필요 시 갱신)
+const macroEvents: MacroEvent[] = [
+  { name: 'FOMC 회의', date: '2026-01-29', type: 'FOMC' },
+  { name: '미국 CPI 발표', date: '2026-02-13', type: 'CPI' },
+  { name: '실적 시즌 피크', date: '2026-02-07', type: 'EARNINGS' }
+];
+
 const computeAssetSnapshot = (journal: InvestmentJournal | null, exchangeRate: number) => {
   if (!journal) return { total: 0, cash: 0, concentration: 0, topBucket: 'N/A' };
   const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
@@ -967,6 +980,18 @@ function Index() {
     if (vix && vix > 20) alerts.push(`VIX ${vix.toFixed(1)}: 변동성↑, 진입시 분할/스탑 타이트`);
     const dxy = latestJournal?.psychologyCheck?.dxyIndex ? Number(latestJournal.psychologyCheck.dxyIndex) : null;
     if (dxy && dxy > 105) alerts.push(`DXY ${dxy.toFixed(1)}: 달러 강세, 위험자산 압박 주의`);
+
+    // 이벤트 캘린더 알림 (향후 14일 이내)
+    const today = new Date();
+    const soonEvents = macroEvents.filter((ev) => {
+      const evDate = new Date(ev.date);
+      const diff = (evDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      return diff >= 0 && diff <= 14;
+    });
+    soonEvents.forEach((ev) => {
+      alerts.push(`${ev.name} D-${Math.max(0, Math.ceil((new Date(ev.date).getTime() - today.getTime()) / (1000 * 60 * 60 * 24)))}: 변동성 주의`);
+    });
+
     setCoreAlerts(alerts);
   }, [latestJournal, exchangeRate]);
 
@@ -1357,7 +1382,7 @@ function Index() {
                 {summaryLoading ? '생성 중...' : '요약 생성'}
               </Button>
             </div>
-            <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
+              <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
               {summaryText || '버튼을 눌러 최신 일지 기반 요약을 생성하세요.'}
             </div>
           </CardContent>
