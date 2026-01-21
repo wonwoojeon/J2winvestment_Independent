@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ReactNode } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ interface RiskSnapshotProps {
   journal?: InvestmentJournal | null;
   exchangeRate: number;
   hideAssetAmounts?: boolean;
+  extraContent?: ReactNode;
 }
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
@@ -23,7 +24,7 @@ const getFearGreedLabel = (value: number) => {
   return { text: '극공포', color: 'text-purple-400' };
 };
 
-export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRate, hideAssetAmounts }) => {
+export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRate, hideAssetAmounts, extraContent }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!journal) {
@@ -107,60 +108,65 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
         </div>
       </CardHeader>
       {isExpanded && (
-        <CardContent className="pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Wallet className="h-4 w-4 text-emerald-400" />
-              보유 현금
+        <CardContent className="pt-4 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Wallet className="h-4 w-4 text-emerald-400" />
+                보유 현금
+              </div>
+              <div className="mt-2 text-lg font-semibold text-slate-100">
+                {hideAssetAmounts ? '비공개' : formatKoreanCurrency(cashTotal)}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                현금 비중 {formatPercent(cashRatio)}
+              </div>
             </div>
-            <div className="mt-2 text-lg font-semibold text-slate-100">
-              {hideAssetAmounts ? '비공개' : formatKoreanCurrency(cashTotal)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              현금 비중 {formatPercent(cashRatio)}
-            </div>
-          </div>
 
-          <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <PieChart className="h-4 w-4 text-amber-400" />
-              편중도
+            <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <PieChart className="h-4 w-4 text-amber-400" />
+                편중도
+              </div>
+              <div className="mt-2 text-lg font-semibold text-slate-100">
+                {formatPercent(concentration)}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                {topBucket.label}
+              </div>
             </div>
-            <div className="mt-2 text-lg font-semibold text-slate-100">
-              {formatPercent(concentration)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              {topBucket.label}
-            </div>
-          </div>
 
-          <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Brain className="h-4 w-4 text-blue-400" />
-              Fear &amp; Greed
+            <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Brain className="h-4 w-4 text-blue-400" />
+                Fear &amp; Greed
+              </div>
+              <div className="mt-2 text-lg font-semibold text-slate-100">
+                {fearGreedValue}
+              </div>
+              <Badge variant="outline" className={`mt-2 text-xs ${fearGreedLabel.color}`}>
+                {fearGreedLabel.text}
+              </Badge>
             </div>
-            <div className="mt-2 text-lg font-semibold text-slate-100">
-              {fearGreedValue}
-            </div>
-            <Badge variant="outline" className={`mt-2 text-xs ${fearGreedLabel.color}`}>
-              {fearGreedLabel.text}
-            </Badge>
-          </div>
 
-          <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Layers className="h-4 w-4 text-purple-400" />
-              총 자산
-            </div>
-            <div className="mt-2 text-lg font-semibold text-slate-100">
-              {hideAssetAmounts ? '비공개' : formatKoreanCurrency(totalAssets)}
-            </div>
-            <div className="text-xs text-slate-500 mt-1">
-              최신 일지 기준
+            <div className="bg-slate-950/40 border border-slate-800 rounded-lg p-3">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <Layers className="h-4 w-4 text-purple-400" />
+                총 자산
+              </div>
+              <div className="mt-2 text-lg font-semibold text-slate-100">
+                {hideAssetAmounts ? '비공개' : formatKoreanCurrency(totalAssets)}
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                최신 일지 기준
+              </div>
             </div>
           </div>
-        </div>
+          {extraContent && (
+            <div className="space-y-3">
+              {extraContent}
+            </div>
+          )}
         </CardContent>
       )}
     </Card>

@@ -1009,6 +1009,129 @@ function Index() {
       .join('\n');
   };
 
+  const stanceAndReflectionCards = (
+    <>
+      {stanceCard && (
+        <Card className="bg-slate-900 border-slate-800 shadow-lg">
+          <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm text-slate-400">스탠스</div>
+              <div className="text-xl font-bold text-slate-100">
+                {stanceCard.stance}
+              </div>
+              <div className="text-sm text-slate-300 mt-1">{stanceCard.desc}</div>
+            </div>
+            {coreAlerts.length > 0 && (
+              <div className="space-y-1 text-sm text-slate-200">
+                {coreAlerts.map((alert, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Badge variant="outline" className="border-amber-500/40 text-amber-400">알림</Badge>
+                    <span>{alert}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="bg-slate-900 border-slate-800 shadow-lg">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-sm text-slate-400">GPT 3문장 요약</div>
+              <div className="text-lg font-semibold text-slate-100">핵심 전략 · 위험 · 심리</div>
+            </div>
+            <Button
+              type="button"
+              onClick={async () => {
+                if (!latestJournal) return;
+                setSummaryLoading(true);
+                try {
+                  const memoText = getMemoText(latestJournal.memo);
+                  const stance = stanceCard?.stance || '중립';
+                  const messages = [
+                    {
+                      role: 'system' as const,
+                      content:
+                        '너는 투자 일지 요약 봇이다. 3문장으로 핵심 전략, 위험요인, 대중심리/내 심리 포지션을 간결하게 요약하고, 개선 포인트 1줄을 덧붙여라.'
+                    },
+                    {
+                      role: 'user' as const,
+                      content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}`
+                    }
+                  ];
+                  const res = await callOpenAiProxy(messages, { max_tokens: 220 });
+                  const content = res?.choices?.[0]?.message?.content || '요약을 생성하지 못했습니다.';
+                  setSummaryText(content);
+                } catch (error) {
+                  console.error('요약 생성 실패:', error);
+                  setSummaryText('요약 생성 실패. 잠시 후 다시 시도해주세요.');
+                } finally {
+                  setSummaryLoading(false);
+                }
+              }}
+              disabled={!latestJournal || summaryLoading}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {summaryLoading ? '생성 중...' : '요약 생성'}
+            </Button>
+          </div>
+          <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
+            {summaryText || '버튼을 눌러 최신 일지 기반 요약을 생성하세요.'}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-slate-900 border-slate-800 shadow-lg">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <div className="text-sm text-slate-400">월간 리플렉션 (최근 30일)</div>
+              <div className="text-lg font-semibold text-slate-100">착오 TOP3 / 개선 포인트</div>
+            </div>
+            <Button
+              type="button"
+              onClick={async () => {
+                setReflectionLoading(true);
+                try {
+                  const journalSummary = buildRecentJournalsSummary(30);
+                  const stance = stanceCard?.stance || '중립';
+                  const messages = [
+                    {
+                      role: 'system' as const,
+                      content:
+                        '너는 투자 리플렉션 코치다. 입력된 최근 30일 일지 요약을 보고 (1) 착오/실수 Top3, (2) 심리/시나리오 과몰입 여부, (3) 다음 달 액션 3가지를 bullet로 제시하라. 각 항목은 짧고 실행 가능하게 작성하라.'
+                    },
+                    {
+                      role: 'user' as const,
+                      content: `최근 30일 일지 요약:\n${journalSummary}\n현재 스탠스: ${stance}`
+                    }
+                  ];
+                  const res = await callOpenAiProxy(messages, { max_tokens: 320 });
+                  const content = res?.choices?.[0]?.message?.content || '리플렉션을 생성하지 못했습니다.';
+                  setReflectionText(content);
+                } catch (error) {
+                  console.error('리플렉션 생성 실패:', error);
+                  setReflectionText('리플렉션 생성 실패. 잠시 후 다시 시도해주세요.');
+                } finally {
+                  setReflectionLoading(false);
+                }
+              }}
+              disabled={reflectionLoading || journals.length === 0}
+              className="bg-purple-600 hover:bg-purple-700"
+            >
+              {reflectionLoading ? '생성 중...' : '리플렉션 생성'}
+            </Button>
+          </div>
+          <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[80px]">
+            {reflectionText || '최근 30일 일지를 바탕으로 월간 리플렉션을 생성합니다.'}
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
@@ -1316,129 +1439,10 @@ function Index() {
           <DashboardBibleVerseTicker />
         </div>
 
-        {stanceCard && (
-          <Card className="bg-slate-900 border-slate-800 shadow-lg">
-            <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm text-slate-400">스탠스</div>
-                <div className="text-xl font-bold text-slate-100">
-                  {stanceCard.stance}
-                </div>
-                <div className="text-sm text-slate-300 mt-1">{stanceCard.desc}</div>
-              </div>
-              {coreAlerts.length > 0 && (
-                <div className="space-y-1 text-sm text-slate-200">
-                  {coreAlerts.map((alert, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-amber-500/40 text-amber-400">알림</Badge>
-                      <span>{alert}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="bg-slate-900 border-slate-800 shadow-lg">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="text-sm text-slate-400">GPT 3문장 요약</div>
-                <div className="text-lg font-semibold text-slate-100">핵심 전략 · 위험 · 심리</div>
-              </div>
-              <Button
-                type="button"
-                onClick={async () => {
-                  if (!latestJournal) return;
-                  setSummaryLoading(true);
-                  try {
-                    const memoText = getMemoText(latestJournal.memo);
-                    const stance = stanceCard?.stance || '중립';
-                    const messages = [
-                      {
-                        role: 'system' as const,
-                        content:
-                          '너는 투자 일지 요약 봇이다. 3문장으로 핵심 전략, 위험요인, 대중심리/내 심리 포지션을 간결하게 요약하고, 개선 포인트 1줄을 덧붙여라.'
-                      },
-                      {
-                        role: 'user' as const,
-                        content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}`
-                      }
-                    ];
-                    const res = await callOpenAiProxy(messages, { max_tokens: 220 });
-                    const content = res?.choices?.[0]?.message?.content || '요약을 생성하지 못했습니다.';
-                    setSummaryText(content);
-                  } catch (error) {
-                    console.error('요약 생성 실패:', error);
-                    setSummaryText('요약 생성 실패. 잠시 후 다시 시도해주세요.');
-                  } finally {
-                    setSummaryLoading(false);
-                  }
-                }}
-                disabled={!latestJournal || summaryLoading}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {summaryLoading ? '생성 중...' : '요약 생성'}
-              </Button>
-            </div>
-              <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
-              {summaryText || '버튼을 눌러 최신 일지 기반 요약을 생성하세요.'}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 border-slate-800 shadow-lg">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <div className="text-sm text-slate-400">월간 리플렉션 (최근 30일)</div>
-                <div className="text-lg font-semibold text-slate-100">착오 TOP3 / 개선 포인트</div>
-              </div>
-              <Button
-                type="button"
-                onClick={async () => {
-                  setReflectionLoading(true);
-                  try {
-                    const journalSummary = buildRecentJournalsSummary(30);
-                    const stance = stanceCard?.stance || '중립';
-                    const messages = [
-                      {
-                        role: 'system' as const,
-                        content:
-                          '너는 투자 리플렉션 코치다. 입력된 최근 30일 일지 요약을 보고 (1) 착오/실수 Top3, (2) 심리/시나리오 과몰입 여부, (3) 다음 달 액션 3가지를 bullet로 제시하라. 각 항목은 짧고 실행 가능하게 작성하라.'
-                      },
-                      {
-                        role: 'user' as const,
-                        content: `최근 30일 일지 요약:\n${journalSummary}\n현재 스탠스: ${stance}`
-                      }
-                    ];
-                    const res = await callOpenAiProxy(messages, { max_tokens: 320 });
-                    const content = res?.choices?.[0]?.message?.content || '리플렉션을 생성하지 못했습니다.';
-                    setReflectionText(content);
-                  } catch (error) {
-                    console.error('리플렉션 생성 실패:', error);
-                    setReflectionText('리플렉션 생성 실패. 잠시 후 다시 시도해주세요.');
-                  } finally {
-                    setReflectionLoading(false);
-                  }
-                }}
-                disabled={reflectionLoading || journals.length === 0}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                {reflectionLoading ? '생성 중...' : '리플렉션 생성'}
-              </Button>
-            </div>
-            <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[80px]">
-              {reflectionText || '최근 30일 일지를 바탕으로 월간 리플렉션을 생성합니다.'}
-            </div>
-          </CardContent>
-        </Card>
-
         <DashboardTodoList userId={user?.id} />
 
         {/* 리스크 스냅샷 */}
-        <RiskSnapshot journal={latestJournal} exchangeRate={exchangeRate} />
+        <RiskSnapshot journal={latestJournal} exchangeRate={exchangeRate} extraContent={stanceAndReflectionCards} />
 
         {/* 자산 차트 */}
         <AssetChangeChart 
