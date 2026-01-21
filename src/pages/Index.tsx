@@ -70,6 +70,41 @@ const formatKoreanCurrency = (amount: number): string => {
   return isNegative ? `-${result}` : result;
 };
 
+const hashString = (value: string): string => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+};
+
+const readCachedText = (key: string | null): string | null => {
+  if (!key || typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return typeof parsed?.content === 'string' ? parsed.content : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedText = (key: string | null, content: string): void => {
+  if (!key || typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(
+      key,
+      JSON.stringify({ content, savedAt: new Date().toISOString() })
+    );
+  } catch {
+    // ignore cache failures
+  }
+};
+
+type AiCacheType = 'summary' | 'reflection';
+
 // 🙏 성경구절 티커 (대시보드용)
 const DashboardBibleVerseTicker: React.FC = () => {
   const [shuffledVerses, setShuffledVerses] = useState<string[]>([]);
@@ -1009,6 +1044,153 @@ function Index() {
       .join('\n');
   };
 
+  const recentJournalsSummary = useMemo(() => buildRecentJournalsSummary(30), [journals]);
+
+  const fetchAiCache = async (cacheKey: string | null, cacheType: AiCacheType) => {
+    if (!cacheKey || !user?.id) return null;
+    try {
+      const { data, error } = await supabase
+        .from('journal_ai_cache')
+        .select('content')
+        .eq('user_id', user.id)
+        .eq('cache_key', cacheKey)
+        .eq('cache_type', cacheType)
+        .maybeSingle();
+
+      if (error) {
+        console.error('❌ AI 캐시 로드 실패:', error);
+        return null;
+      }
+
+      return data?.content ?? null;
+    } catch (error) {
+      console.error('❌ AI 캐시 로드 실패:', error);
+      return null;
+    }
+  };
+
+  const saveAiCache = async (
+    cacheKey: string | null,
+    cacheType: AiCacheType,
+    sourceHash: string,
+    content: string
+  ) => {
+    if (!cacheKey || !user?.id) return;
+    try {
+      const payload = {
+        user_id: user.id,
+        cache_key: cacheKey,
+        cache_type: cacheType,
+        source_hash: sourceHash,
+        content,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('journal_ai_cache')
+        .upsert(payload, { onConflict: 'user_id,cache_key' });
+
+      if (error) {
+        console.error('❌ AI 캐시 저장 실패:', error);
+      }
+    } catch (error) {
+      console.error('❌ AI 캐시 저장 실패:', error);
+    }
+  };
+
+  const summaryCacheKey = useMemo(() => {
+    if (!user?.id || !latestJournal) return null;
+    const memoText = getMemoText(latestJournal.memo);
+    const payload = JSON.stringify({
+      id: latestJournal.id,
+      date: latestJournal.date,
+      totalAssets: latestJournal.totalAssets,
+      psychology: latestJournal.psychologyCheck ?? {},
+      memo: memoText || '',
+      stance: stanceCard?.stance || ''
+    });
+    return `j2w_ai_summary_${user.id}_${hashString(payload)}`;
+  }, [user?.id, latestJournal, stanceCard?.stance]);
+
+  const summarySourceHash = useMemo(() => {
+    if (!latestJournal) return '';
+    const memoText = getMemoText(latestJournal.memo);
+    const payload = JSON.stringify({
+      id: latestJournal.id,
+      date: latestJournal.date,
+      totalAssets: latestJournal.totalAssets,
+      psychology: latestJournal.psychologyCheck ?? {},
+      memo: memoText || '',
+      stance: stanceCard?.stance || ''
+    });
+    return hashString(payload);
+  }, [latestJournal, stanceCard?.stance]);
+
+  const reflectionCacheKey = useMemo(() => {
+    if (!user?.id || journals.length === 0) return null;
+    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}`;
+    return `j2w_ai_reflection_${user.id}_${hashString(payload)}`;
+  }, [user?.id, journals.length, recentJournalsSummary, stanceCard?.stance]);
+
+  const reflectionSourceHash = useMemo(() => {
+    const payload = `${recentJournalsSummary}|${stanceCard?.stance || ''}`;
+    return hashString(payload);
+  }, [recentJournalsSummary, stanceCard?.stance]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!summaryCacheKey) {
+        setSummaryText('');
+        return;
+      }
+      const cached = readCachedText(summaryCacheKey);
+      if (cached) {
+        setSummaryText(cached);
+        return;
+      }
+      const remoteCached = await fetchAiCache(summaryCacheKey, 'summary');
+      if (!active) return;
+      if (remoteCached) {
+        setSummaryText(remoteCached);
+        writeCachedText(summaryCacheKey, remoteCached);
+      } else {
+        setSummaryText('');
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [summaryCacheKey]);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!reflectionCacheKey) {
+        setReflectionText('');
+        return;
+      }
+      const cached = readCachedText(reflectionCacheKey);
+      if (cached) {
+        setReflectionText(cached);
+        return;
+      }
+      const remoteCached = await fetchAiCache(reflectionCacheKey, 'reflection');
+      if (!active) return;
+      if (remoteCached) {
+        setReflectionText(remoteCached);
+        writeCachedText(reflectionCacheKey, remoteCached);
+      } else {
+        setReflectionText('');
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [reflectionCacheKey]);
+
   const stanceAndReflectionCards = (
     <>
       {stanceCard && (
@@ -1046,6 +1228,19 @@ function Index() {
               type="button"
               onClick={async () => {
                 if (!latestJournal) return;
+                const cached = readCachedText(summaryCacheKey);
+                if (cached) {
+                  setSummaryText(cached);
+                  return;
+                }
+                if (summaryCacheKey) {
+                  const remoteCached = await fetchAiCache(summaryCacheKey, 'summary');
+                  if (remoteCached) {
+                    setSummaryText(remoteCached);
+                    writeCachedText(summaryCacheKey, remoteCached);
+                    return;
+                  }
+                }
                 setSummaryLoading(true);
                 try {
                   const memoText = getMemoText(latestJournal.memo);
@@ -1054,16 +1249,22 @@ function Index() {
                     {
                       role: 'system' as const,
                       content:
-                        '너는 투자 일지 요약 봇이다. 3문장으로 핵심 전략, 위험요인, 대중심리/내 심리 포지션을 간결하게 요약하고, 개선 포인트 1줄을 덧붙여라.'
+                        '너는 투자 일지 요약 봇이다. 아래 형식으로만 한국어 4줄로 답해라.\n[전략] 한 줄\n[위험] 한 줄\n[심리] 대중 심리와 내 심리를 분리해 한 줄\n[개선] 실행 가능한 개선 1줄\n입력에 없는 정보는 추정하지 말고 "데이터 없음"으로 표시하라.'
                     },
                     {
                       role: 'user' as const,
                       content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}`
                     }
                   ];
-                  const res = await callOpenAiProxy(messages, { max_tokens: 220 });
+                  const res = await callOpenAiProxy(messages, {
+                    model: 'gpt-4o-mini',
+                    temperature: 0.2,
+                    max_tokens: 220
+                  });
                   const content = res?.choices?.[0]?.message?.content || '요약을 생성하지 못했습니다.';
                   setSummaryText(content);
+                  writeCachedText(summaryCacheKey, content);
+                  await saveAiCache(summaryCacheKey, 'summary', summarySourceHash, content);
                 } catch (error) {
                   console.error('요약 생성 실패:', error);
                   setSummaryText('요약 생성 실패. 잠시 후 다시 시도해주세요.');
@@ -1093,24 +1294,42 @@ function Index() {
             <Button
               type="button"
               onClick={async () => {
+                const cached = readCachedText(reflectionCacheKey);
+                if (cached) {
+                  setReflectionText(cached);
+                  return;
+                }
+                if (reflectionCacheKey) {
+                  const remoteCached = await fetchAiCache(reflectionCacheKey, 'reflection');
+                  if (remoteCached) {
+                    setReflectionText(remoteCached);
+                    writeCachedText(reflectionCacheKey, remoteCached);
+                    return;
+                  }
+                }
                 setReflectionLoading(true);
                 try {
-                  const journalSummary = buildRecentJournalsSummary(30);
                   const stance = stanceCard?.stance || '중립';
                   const messages = [
                     {
                       role: 'system' as const,
                       content:
-                        '너는 투자 리플렉션 코치다. 입력된 최근 30일 일지 요약을 보고 (1) 착오/실수 Top3, (2) 심리/시나리오 과몰입 여부, (3) 다음 달 액션 3가지를 bullet로 제시하라. 각 항목은 짧고 실행 가능하게 작성하라.'
+                        '너는 투자 리플렉션 코치다. 아래 형식으로만 한국어로 답하라.\n착오 Top3:\n- 항목 1\n- 항목 2\n- 항목 3\n심리/과몰입 점검:\n- 한 줄\n다음 달 액션 3가지:\n- 액션 1\n- 액션 2\n- 액션 3\n입력에 없는 정보는 추정하지 말고 "데이터 없음"으로 표시하라.'
                     },
                     {
                       role: 'user' as const,
-                      content: `최근 30일 일지 요약:\n${journalSummary}\n현재 스탠스: ${stance}`
+                      content: `최근 30일 일지 요약:\n${recentJournalsSummary}\n현재 스탠스: ${stance}`
                     }
                   ];
-                  const res = await callOpenAiProxy(messages, { max_tokens: 320 });
+                  const res = await callOpenAiProxy(messages, {
+                    model: 'gpt-4o',
+                    temperature: 0.2,
+                    max_tokens: 360
+                  });
                   const content = res?.choices?.[0]?.message?.content || '리플렉션을 생성하지 못했습니다.';
                   setReflectionText(content);
+                  writeCachedText(reflectionCacheKey, content);
+                  await saveAiCache(reflectionCacheKey, 'reflection', reflectionSourceHash, content);
                 } catch (error) {
                   console.error('리플렉션 생성 실패:', error);
                   setReflectionText('리플렉션 생성 실패. 잠시 후 다시 시도해주세요.');
