@@ -18,6 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { callOpenAiProxy } from '@/lib/llm';
+import { getJournalExchangeRate } from '@/utils/exchangeRate';
 import { 
   User, 
   Settings, 
@@ -189,9 +191,90 @@ type TodoRow = {
   completed_at: string | null;
 };
 
+type StanceInfo = {
+  stance: string;
+  desc: string;
+  tone: 'positive' | 'neutral' | 'warning';
+};
+
 const formatTodoDate = (dateStr: string) => {
   const date = new Date(dateStr);
   return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+};
+
+const computeAssetSnapshot = (journal: InvestmentJournal | null, exchangeRate: number) => {
+  if (!journal) return { total: 0, cash: 0, concentration: 0, topBucket: 'N/A' };
+  const effectiveRate = getJournalExchangeRate(journal, exchangeRate);
+  const foreignTotal =
+    (journal.foreignStocks || []).reduce(
+      (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+      0
+    ) * effectiveRate;
+  const domesticTotal = (journal.domesticStocks || []).reduce(
+    (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+    0
+  );
+  const cryptoTotal =
+    (journal.cryptocurrency || []).reduce(
+      (sum, stock) => sum + (Number(stock?.price) || 0) * (Number(stock?.quantity) || 0),
+      0
+    ) * effectiveRate;
+  const cashKrw = Number(journal.cash?.krw) || 0;
+  const cashUsd = Number(journal.cash?.usd) || 0;
+  const cashTotal = cashKrw + cashUsd * effectiveRate;
+
+  const totalAssets = journal.totalAssets || foreignTotal + domesticTotal + cryptoTotal + cashTotal;
+  const buckets = [
+    { label: '해외주식', value: foreignTotal },
+    { label: '국내주식', value: domesticTotal },
+    { label: '크립토', value: cryptoTotal },
+    { label: '현금', value: cashTotal }
+  ];
+  const topBucket = buckets.reduce((max, item) => (item.value > max.value ? item : max), buckets[0]);
+  const concentration = totalAssets > 0 ? (topBucket.value / totalAssets) * 100 : 0;
+  return { total: totalAssets, cash: cashTotal, concentration, topBucket: topBucket.label };
+};
+
+const deriveStance = (journal: InvestmentJournal | null, exchangeRate: number): StanceInfo | null => {
+  if (!journal) return null;
+  const fg = journal.psychologyCheck?.fearGreedIndex ?? 50;
+  const vix = journal.psychologyCheck?.vixIndex ? Number(journal.psychologyCheck?.vixIndex) : null;
+  const { cash, total, concentration } = computeAssetSnapshot(journal, exchangeRate);
+  const cashRatio = total > 0 ? (cash / total) * 100 : 0;
+
+  if (fg <= 25) {
+    return {
+      stance: '공격',
+      desc: '극공포 구간: 역행 매수/포지션 확대 기회. 단, 분할 매수와 손절선 점검.',
+      tone: 'positive'
+    };
+  }
+  if (fg >= 75 || concentration > 45) {
+    return {
+      stance: '관망/보수',
+      desc: '시장 탐욕 또는 포지션 편중↑: 현금 비중 확대로 리스크 관리, 급락 대비.',
+      tone: 'warning'
+    };
+  }
+  if (cashRatio > 40 && fg < 60) {
+    return {
+      stance: '보수',
+      desc: '현금 여유 확보 상태. 신호 확인 후 선택적 진입.',
+      tone: 'neutral'
+    };
+  }
+  if (vix !== null && vix > 20) {
+    return {
+      stance: '보수',
+      desc: '변동성 상승(VIX>20). 진입은 분할, 익절/손절폭 축소.',
+      tone: 'neutral'
+    };
+  }
+  return {
+    stance: '중립',
+    desc: '균형 구간. 핵심 시나리오 점검 후 크기 조절.',
+    tone: 'neutral'
+  };
 };
 
 const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
@@ -610,6 +693,10 @@ function Index() {
   const [journals, setJournals] = useState<InvestmentJournal[]>([]);
   const [exchangeRate] = useState(1300);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [stanceCard, setStanceCard] = useState<StanceInfo | null>(null);
+  const [coreAlerts, setCoreAlerts] = useState<string[]>([]);
+  const [summaryText, setSummaryText] = useState<string>('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -863,6 +950,23 @@ function Index() {
   };
 
   const latestJournal = journals[0] || null;
+
+  useEffect(() => {
+    const stance = deriveStance(latestJournal, exchangeRate);
+    setStanceCard(stance);
+
+    const alerts: string[] = [];
+    const fg = latestJournal?.psychologyCheck?.fearGreedIndex;
+    if (fg !== undefined) {
+      if (fg >= 75) alerts.push('시장 탐욕 구간: 포지션 축소/현금 비중 확인');
+      if (fg <= 25) alerts.push('극공포: 분할 매수 기회, 손절선 점검');
+    }
+    const vix = latestJournal?.psychologyCheck?.vixIndex ? Number(latestJournal.psychologyCheck.vixIndex) : null;
+    if (vix && vix > 20) alerts.push(`VIX ${vix.toFixed(1)}: 변동성↑, 진입시 분할/스탑 타이트`);
+    const dxy = latestJournal?.psychologyCheck?.dxyIndex ? Number(latestJournal.psychologyCheck.dxyIndex) : null;
+    if (dxy && dxy > 105) alerts.push(`DXY ${dxy.toFixed(1)}: 달러 강세, 위험자산 압박 주의`);
+    setCoreAlerts(alerts);
+  }, [latestJournal, exchangeRate]);
 
   if (loading) {
     return (
@@ -1170,6 +1274,78 @@ function Index() {
         <div className="rounded-xl overflow-hidden shadow-lg border border-slate-800">
           <DashboardBibleVerseTicker />
         </div>
+
+        {stanceCard && (
+          <Card className="bg-slate-900 border-slate-800 shadow-lg">
+            <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm text-slate-400">스탠스</div>
+                <div className="text-xl font-bold text-slate-100">
+                  {stanceCard.stance}
+                </div>
+                <div className="text-sm text-slate-300 mt-1">{stanceCard.desc}</div>
+              </div>
+              {coreAlerts.length > 0 && (
+                <div className="space-y-1 text-sm text-slate-200">
+                  {coreAlerts.map((alert, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <Badge variant="outline" className="border-amber-500/40 text-amber-400">알림</Badge>
+                      <span>{alert}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card className="bg-slate-900 border-slate-800 shadow-lg">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="text-sm text-slate-400">GPT 3문장 요약</div>
+                <div className="text-lg font-semibold text-slate-100">핵심 전략 · 위험 · 심리</div>
+              </div>
+              <Button
+                type="button"
+                onClick={async () => {
+                  if (!latestJournal) return;
+                  setSummaryLoading(true);
+                  try {
+                    const memoText = getMemoText(latestJournal.memo);
+                    const stance = stanceCard?.stance || '중립';
+                    const messages = [
+                      {
+                        role: 'system' as const,
+                        content:
+                          '너는 투자 일지 요약 봇이다. 3문장으로 핵심 전략, 위험요인, 대중심리/내 심리 포지션을 간결하게 요약하고, 개선 포인트 1줄을 덧붙여라.'
+                      },
+                      {
+                        role: 'user' as const,
+                        content: `최근 일지: 날짜 ${latestJournal.date}, 총자산 ${latestJournal.totalAssets}, Fear&Greed ${latestJournal.psychologyCheck?.fearGreedIndex ?? '-'}, VIX ${latestJournal.psychologyCheck?.vixIndex ?? '-'}, DXY ${latestJournal.psychologyCheck?.dxyIndex ?? '-'}, 10Y ${latestJournal.psychologyCheck?.us10yYield ?? '-'}, 스탠스 ${stance}, 메모 ${memoText || '없음'}`
+                      }
+                    ];
+                    const res = await callOpenAiProxy(messages, { max_tokens: 220 });
+                    const content = res?.choices?.[0]?.message?.content || '요약을 생성하지 못했습니다.';
+                    setSummaryText(content);
+                  } catch (error) {
+                    console.error('요약 생성 실패:', error);
+                    setSummaryText('요약 생성 실패. 잠시 후 다시 시도해주세요.');
+                  } finally {
+                    setSummaryLoading(false);
+                  }
+                }}
+                disabled={!latestJournal || summaryLoading}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {summaryLoading ? '생성 중...' : '요약 생성'}
+              </Button>
+            </div>
+            <div className="text-sm text-slate-300 whitespace-pre-wrap min-h-[60px]">
+              {summaryText || '버튼을 눌러 최신 일지 기반 요약을 생성하세요.'}
+            </div>
+          </CardContent>
+        </Card>
 
         <DashboardTodoList userId={user?.id} />
 
