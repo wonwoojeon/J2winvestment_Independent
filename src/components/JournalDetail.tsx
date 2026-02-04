@@ -163,13 +163,15 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
 
   const parseCommentsPayload = (raw: string) => {
     const trimmed = raw.trim();
-    const jsonStart = trimmed.indexOf('[');
-    const jsonEnd = trimmed.lastIndexOf(']');
+    const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    const candidate = fenced ? fenced[1].trim() : trimmed;
+    const jsonStart = candidate.indexOf('[');
+    const jsonEnd = candidate.lastIndexOf(']');
     if (jsonStart !== -1 && jsonEnd !== -1) {
-      const jsonText = trimmed.slice(jsonStart, jsonEnd + 1);
+      const jsonText = candidate.slice(jsonStart, jsonEnd + 1);
       return JSON.parse(jsonText);
     }
-    return JSON.parse(trimmed);
+    return JSON.parse(candidate);
   };
 
   const handleGenerateComments = async () => {
@@ -182,7 +184,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
         {
           role: 'system' as const,
           content:
-            '너는 투자 일지에 대한 코멘터다. 반드시 JSON 배열로만 응답하라. 각 원소는 { "sentiment": "pro" | "con", "persona": "짧은 페르소나", "comment": "한국어 댓글" } 형식이다. 찬성 5개, 반대 5개. 댓글은 사실 기반, 과장 금지, 1~2문장.'
+            '너는 투자 일지에 대한 코멘터다. 반드시 JSON 배열로만 응답하라. 코드블록(```) 금지. 각 원소는 { "sentiment": "pro" | "con", "persona": "짧은 페르소나", "comment": "한국어 댓글" } 형식이다. 찬성 5개, 반대 5개. 댓글은 사실 기반, 과장 금지, 1~2문장.'
         },
         {
           role: 'user' as const,
@@ -285,12 +287,12 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             onClick={handleDelete} 
             variant="outline"
             disabled={!isOwner}
-            className={`border-blue-700 text-blue-200 hover:bg-blue-800/60 hover:text-white ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`border-white/30 text-white bg-white/5 hover:bg-rose-500/20 hover:text-rose-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
           </Button>
-          <Button onClick={onEdit} disabled={!isOwner} className={`bg-blue-900/80 hover:bg-blue-800/80 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <Button onClick={onEdit} disabled={!isOwner} className={`bg-white text-slate-900 hover:bg-slate-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Edit className="h-4 w-4 mr-2" />
             수정
           </Button>

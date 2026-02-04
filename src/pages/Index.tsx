@@ -305,9 +305,9 @@ const BackgroundDecor: React.FC = () => {
       >
         <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
       </video>
-      <div className="absolute inset-0 bg-black/40" />
+      <div className="absolute inset-0 bg-slate-950/80" />
       <div
-        className="absolute inset-0 opacity-70"
+        className="absolute inset-0 opacity-80"
         style={{
           backgroundImage:
             'radial-gradient(circle at 12% 18%, rgba(88,28,135,0.5), transparent 50%), radial-gradient(circle at 85% 12%, rgba(30,64,175,0.45), transparent 55%), radial-gradient(circle at 75% 85%, rgba(17,24,39,0.8), transparent 55%)'
