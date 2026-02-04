@@ -282,7 +282,8 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   );
 };
 
-const BACKGROUND_VIDEO_URL = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
+const BACKGROUND_VIDEO_URL =
+  'https://images-assets.nasa.gov/video/ksc_061404_t-nebula/ksc_061404_t-nebula~mobile.mp4';
 
 const BackgroundDecor: React.FC = () => (
   <div className="fixed inset-0 -z-10 overflow-hidden">
