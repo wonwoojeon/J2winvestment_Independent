@@ -322,7 +322,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             <Button
               onClick={handleGenerateComments}
               disabled={!isOwner || aiLoading}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
             >
               {aiLoading ? '생성 중...' : '댓글 생성'}
             </Button>

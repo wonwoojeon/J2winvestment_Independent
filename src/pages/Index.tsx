@@ -296,8 +296,8 @@ const BackgroundDecor: React.FC = () => {
     <div className="fixed inset-0 -z-10 overflow-hidden">
       <video
         ref={videoRef}
-        className="absolute inset-0 h-full w-full object-cover opacity-60"
-        style={{ filter: 'saturate(1.8) hue-rotate(28deg) brightness(0.55) contrast(1.1)' }}
+        className="absolute inset-0 h-full w-full object-cover opacity-55"
+        style={{ filter: 'saturate(1.3) hue-rotate(235deg) brightness(0.38) contrast(1.25)' }}
         autoPlay
         muted
         loop
@@ -305,16 +305,16 @@ const BackgroundDecor: React.FC = () => {
       >
         <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
       </video>
-    <div className="absolute inset-0 bg-slate-950/70" />
-    <div
-      className="absolute inset-0 opacity-70"
-      style={{
-        backgroundImage:
-          'radial-gradient(circle at 15% 20%, rgba(56,189,248,0.45), transparent 50%), radial-gradient(circle at 85% 10%, rgba(167,139,250,0.45), transparent 50%), radial-gradient(circle at 80% 80%, rgba(236,72,153,0.35), transparent 55%)'
-      }}
-    />
-      <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-cyan-400/20 blur-[140px] mix-blend-screen" />
-      <div className="absolute bottom-[-20%] left-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/20 blur-[160px] mix-blend-screen" />
+      <div className="absolute inset-0 bg-slate-950/80" />
+      <div
+        className="absolute inset-0 opacity-80"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 12% 18%, rgba(88,28,135,0.5), transparent 50%), radial-gradient(circle at 85% 12%, rgba(30,64,175,0.45), transparent 55%), radial-gradient(circle at 75% 85%, rgba(17,24,39,0.8), transparent 55%)'
+        }}
+      />
+      <div className="absolute -top-48 right-[-12%] h-[560px] w-[560px] rounded-full bg-purple-500/20 blur-[170px] mix-blend-screen" />
+      <div className="absolute bottom-[-25%] left-[-12%] h-[620px] w-[620px] rounded-full bg-indigo-700/20 blur-[190px] mix-blend-screen" />
     </div>
   );
 };
@@ -336,6 +336,19 @@ const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode 
     <FloatingVerseTicker />
   </div>
 );
+
+const INVESTOR_QUOTES = [
+  { name: '워렌 버핏', quote: '규칙 1: 돈을 잃지 말라. 규칙 2: 규칙 1을 잊지 말라.' },
+  { name: '레이 달리오', quote: '원칙은 고통스러운 경험을 비용으로 얻는 보상이다.' },
+  { name: '피터 린치', quote: '이해할 수 없는 것에 투자하지 마라.' },
+  { name: '벤저민 그레이엄', quote: '투자는 철저한 분석에 기반해야 한다.' },
+  { name: '찰리 멍거', quote: '훌륭한 회사를 합리적인 가격에 사라.' },
+  { name: '존 템플턴', quote: '가장 비관적일 때가 최고의 매수 시점이다.' },
+  { name: '하워드 막스', quote: '리스크를 이해하지 못하면 수익도 이해할 수 없다.' },
+  { name: '폴 튜더 존스', quote: '손실은 빠르게, 이익은 길게.' },
+  { name: '제시 리버모어', quote: '돈은 기다림으로 만들어진다.' },
+  { name: '조지 소로스', quote: '틀렸음을 인정하고 수정하는 것이 핵심이다.' }
+];
 
 type TodoItem = {
   id: string;
@@ -1174,6 +1187,10 @@ function Index() {
     () => buildAssetPromptDetails(latestJournal, exchangeRate),
     [latestJournal, exchangeRate]
   );
+  const todaySignal = useMemo(() => {
+    const pick = INVESTOR_QUOTES[Math.floor(Math.random() * INVESTOR_QUOTES.length)];
+    return pick || { name: '투자 철학', quote: '데이터는 말하고 감정은 속삭인다.' };
+  }, []);
 
   const fetchAiCache = async (cacheKey: string | null, cacheType: AiCacheType) => {
     if (!cacheKey || !user?.id) return null;
@@ -1404,7 +1421,7 @@ function Index() {
                 }
               }}
               disabled={!latestJournal || summaryLoading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-indigo-600 hover:bg-indigo-500"
             >
               {summaryLoading ? '생성 중...' : '요약 생성'}
             </Button>
@@ -1469,7 +1486,7 @@ function Index() {
                 }
               }}
               disabled={reflectionLoading || journals.length === 0}
-              className="bg-purple-600 hover:bg-purple-700"
+              className="bg-violet-600 hover:bg-violet-500"
             >
               {reflectionLoading ? '생성 중...' : '리플렉션 생성'}
             </Button>
@@ -1578,7 +1595,7 @@ function Index() {
             <div className="space-y-4">
               <button
                 onClick={signInWithGoogle}
-                className="w-full bg-white/90 text-slate-900 hover:bg-white px-8 py-3.5 rounded-xl text-lg font-semibold transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/10"
+                className="w-full bg-slate-100/90 text-slate-900 hover:bg-white px-8 py-3.5 rounded-xl text-lg font-semibold transition-all flex items-center justify-center gap-3 shadow-lg shadow-slate-900/10"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -1591,7 +1608,7 @@ function Index() {
               
               <button
                 onClick={handleGoToPublicSearch}
-                className="w-full bg-slate-900/70 hover:bg-slate-800/80 text-slate-200 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-white/10 backdrop-blur"
+                className="w-full bg-slate-950/60 hover:bg-slate-900/70 text-slate-200 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-white/10 backdrop-blur"
               >
                 <Search className="w-5 h-5" />
                 다른 사용자 일지 검색
@@ -1716,7 +1733,7 @@ function Index() {
                 setSelectedJournal(null);
                 setCurrentView('form');
               }}
-              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 ml-2"
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20 ml-2"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
               새 일지 작성
@@ -1743,7 +1760,7 @@ function Index() {
                   setCurrentView('form');
                   setMobileMenuOpen(false);
                 }}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 w-full justify-start"
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 w-full justify-start"
               >
                 <PlusCircle className="h-4 w-4 mr-2" />
                 새 일지 작성
@@ -1788,13 +1805,13 @@ function Index() {
     >
       
       <main className="container mx-auto px-3 sm:px-6 py-10 space-y-10 max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)] gap-6 lg:items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:items-start">
           <DashboardTodoList userId={user?.id} />
           <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">
-            <div className="text-xs uppercase tracking-[0.3em] text-cyan-200/70">Quick Lens</div>
-            <div className="text-lg font-semibold text-slate-100">오늘의 신호</div>
-            <p className="text-sm text-slate-200/70">
-              리스크 스냅샷과 GPT 요약을 빠르게 확인하고, 필요하면 바로 깊게 펼쳐보세요.
+            <div className="text-xs uppercase tracking-[0.3em] text-indigo-200/70">Today Signal</div>
+            <div className="text-lg font-semibold text-slate-100">{todaySignal.name}</div>
+            <p className="text-sm text-slate-200/70 leading-relaxed">
+              {todaySignal.quote}
             </p>
           </div>
         </div>
