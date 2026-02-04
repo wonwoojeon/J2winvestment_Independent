@@ -282,8 +282,7 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   );
 };
 
-const BACKGROUND_VIDEO_URL =
-  'https://images-assets.nasa.gov/video/ksc_061404_t-nebula/ksc_061404_t-nebula~mobile.mp4';
+const BACKGROUND_VIDEO_URL = '/background.mp4';
 
 const BackgroundDecor: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
