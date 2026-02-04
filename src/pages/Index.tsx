@@ -305,9 +305,9 @@ const BackgroundDecor: React.FC = () => {
       >
         <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
       </video>
-      <div className="absolute inset-0 bg-slate-950/80" />
+      <div className="absolute inset-0 bg-black/40" />
       <div
-        className="absolute inset-0 opacity-80"
+        className="absolute inset-0 opacity-70"
         style={{
           backgroundImage:
             'radial-gradient(circle at 12% 18%, rgba(88,28,135,0.5), transparent 50%), radial-gradient(circle at 85% 12%, rgba(30,64,175,0.45), transparent 55%), radial-gradient(circle at 75% 85%, rgba(17,24,39,0.8), transparent 55%)'
@@ -1421,7 +1421,7 @@ function Index() {
                 }
               }}
               disabled={!latestJournal || summaryLoading}
-              className="bg-indigo-600 hover:bg-indigo-500"
+              className="bg-blue-900/80 hover:bg-blue-800/80"
             >
               {summaryLoading ? '생성 중...' : '요약 생성'}
             </Button>
@@ -1486,7 +1486,7 @@ function Index() {
                 }
               }}
               disabled={reflectionLoading || journals.length === 0}
-              className="bg-violet-600 hover:bg-violet-500"
+              className="bg-blue-900/80 hover:bg-blue-800/80"
             >
               {reflectionLoading ? '생성 중...' : '리플렉션 생성'}
             </Button>
@@ -1733,7 +1733,7 @@ function Index() {
                 setSelectedJournal(null);
                 setCurrentView('form');
               }}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 text-white shadow-lg shadow-indigo-500/20 ml-2"
+              className="bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 text-white shadow-lg shadow-blue-900/30 ml-2"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
               새 일지 작성
@@ -1760,7 +1760,7 @@ function Index() {
                   setCurrentView('form');
                   setMobileMenuOpen(false);
                 }}
-                className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500 w-full justify-start"
+                className="bg-gradient-to-r from-blue-900 to-blue-700 hover:from-blue-800 hover:to-blue-600 w-full justify-start"
               >
                 <PlusCircle className="h-4 w-4 mr-2" />
                 새 일지 작성

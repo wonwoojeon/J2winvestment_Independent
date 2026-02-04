@@ -285,12 +285,12 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             onClick={handleDelete} 
             variant="outline"
             disabled={!isOwner}
-            className={`border-red-500 text-red-500 hover:bg-red-500 hover:text-white ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`border-blue-700 text-blue-200 hover:bg-blue-800/60 hover:text-white ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
           </Button>
-          <Button onClick={onEdit} disabled={!isOwner} className={`bg-blue-600 hover:bg-blue-700 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <Button onClick={onEdit} disabled={!isOwner} className={`bg-blue-900/80 hover:bg-blue-800/80 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Edit className="h-4 w-4 mr-2" />
             수정
           </Button>
@@ -322,7 +322,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             <Button
               onClick={handleGenerateComments}
               disabled={!isOwner || aiLoading}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
             >
               {aiLoading ? '생성 중...' : '댓글 생성'}
             </Button>
