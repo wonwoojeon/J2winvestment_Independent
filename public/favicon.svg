@@ -1,23 +1,22 @@
 <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="crossGradient" x1="16" y1="12" x2="48" y2="52" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f5d76e" />
-      <stop offset="0.5" stop-color="#ffd24d" />
-      <stop offset="1" stop-color="#6fd3ff" />
+    <linearGradient id="crossFill" x1="18" y1="10" x2="46" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#eaf2ff" />
+      <stop offset="1" stop-color="#9fb7ff" />
     </linearGradient>
-    <filter id="glow" x="0" y="0" width="64" height="64" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="3" result="blur" />
+    <filter id="softGlow" x="-10" y="-10" width="84" height="84" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="4" result="blur" />
       <feColorMatrix
         type="matrix"
-        values="0 0 0 0 1 0 0 0 0 0.85 0 0 0 0 0.4 0 0 0 0.65 0"
+        values="0 0 0 0 0.55 0 0 0 0 0.68 0 0 0 0 1 0 0 0 0.7 0"
       />
       <feBlend in="SourceGraphic" in2="blur" mode="screen" />
     </filter>
   </defs>
-  <rect width="64" height="64" rx="14" fill="#0a1022" />
-  <g filter="url(#glow)">
-    <rect x="29" y="12" width="6" height="40" rx="3" fill="url(#crossGradient)" />
-    <rect x="18" y="25" width="28" height="6" rx="3" fill="url(#crossGradient)" />
+  <rect width="64" height="64" rx="14" fill="#070b16" />
+  <g filter="url(#softGlow)">
+    <rect x="29" y="10" width="6" height="44" rx="3" fill="url(#crossFill)" />
+    <rect x="18" y="26" width="28" height="6" rx="3" fill="url(#crossFill)" />
   </g>
-  <rect x="6" y="6" width="52" height="52" rx="12" stroke="#1e274a" stroke-width="1" />
+  <rect x="5.5" y="5.5" width="53" height="53" rx="12.5" stroke="#1b233a" stroke-width="1" />
 </svg>
