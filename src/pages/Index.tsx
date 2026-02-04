@@ -285,18 +285,27 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
 const BACKGROUND_VIDEO_URL =
   'https://images-assets.nasa.gov/video/ksc_061404_t-nebula/ksc_061404_t-nebula~mobile.mp4';
 
-const BackgroundDecor: React.FC = () => (
-  <div className="fixed inset-0 -z-10 overflow-hidden">
-    <video
-      className="absolute inset-0 h-full w-full object-cover opacity-55"
-      style={{ filter: 'saturate(1.4) hue-rotate(12deg) brightness(0.7)' }}
-      autoPlay
-      muted
-      loop
-      playsInline
-    >
-      <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
-    </video>
+const BackgroundDecor: React.FC = () => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = 0.65;
+  }, []);
+
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover opacity-60"
+        style={{ filter: 'saturate(1.8) hue-rotate(28deg) brightness(0.55) contrast(1.1)' }}
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
+      </video>
     <div className="absolute inset-0 bg-slate-950/70" />
     <div
       className="absolute inset-0 opacity-70"
@@ -305,13 +314,14 @@ const BackgroundDecor: React.FC = () => (
           'radial-gradient(circle at 15% 20%, rgba(56,189,248,0.45), transparent 50%), radial-gradient(circle at 85% 10%, rgba(167,139,250,0.45), transparent 50%), radial-gradient(circle at 80% 80%, rgba(236,72,153,0.35), transparent 55%)'
       }}
     />
-    <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-cyan-400/20 blur-[140px] mix-blend-screen" />
-    <div className="absolute bottom-[-20%] left-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/20 blur-[160px] mix-blend-screen" />
-  </div>
-);
+      <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-cyan-400/20 blur-[140px] mix-blend-screen" />
+      <div className="absolute bottom-[-20%] left-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/20 blur-[160px] mix-blend-screen" />
+    </div>
+  );
+};
 
 const FloatingVerseTicker: React.FC = () => (
-  <div className="fixed bottom-4 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
+  <div className="fixed top-16 sm:top-20 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
     <DashboardBibleVerseTicker
       compact
       className="glass-panel rounded-full overflow-hidden bg-slate-950/50"
@@ -323,7 +333,7 @@ const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode 
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
     <BackgroundDecor />
     {header}
-    <div className="relative z-10 pb-28">{children}</div>
+    <div className="relative z-10 pb-20 pt-16 sm:pt-20">{children}</div>
     <FloatingVerseTicker />
   </div>
 );
@@ -1778,8 +1788,17 @@ function Index() {
       )}
     >
       
-      <main className="container mx-auto px-3 sm:px-6 py-8 space-y-10 max-w-7xl">
-        <DashboardTodoList userId={user?.id} />
+      <main className="container mx-auto px-3 sm:px-6 py-10 space-y-10 max-w-7xl">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)] gap-6 lg:items-start">
+          <DashboardTodoList userId={user?.id} />
+          <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">
+            <div className="text-xs uppercase tracking-[0.3em] text-cyan-200/70">Quick Lens</div>
+            <div className="text-lg font-semibold text-slate-100">오늘의 신호</div>
+            <p className="text-sm text-slate-200/70">
+              리스크 스냅샷과 GPT 요약을 빠르게 확인하고, 필요하면 바로 깊게 펼쳐보세요.
+            </p>
+          </div>
+        </div>
 
         {/* 리스크 스냅샷 */}
         <RiskSnapshot journal={latestJournal} exchangeRate={exchangeRate} extraContent={stanceAndReflectionCards} />
