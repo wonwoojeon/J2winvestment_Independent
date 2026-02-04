@@ -27,6 +27,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   const [aiComments, setAiComments] = useState<{ id: string; sentiment: 'pro' | 'con'; persona: string; content: string }[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
@@ -321,51 +322,6 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </CardContent>
         </Card>
       )}
-
-      <Card className="bg-slate-950/40 border-white/10">
-        <CardHeader className="pb-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="text-lg text-slate-100">AI 댓글 (찬성/반대)</CardTitle>
-              <p className="text-sm text-slate-200/70">최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
-            </div>
-            <Button
-              onClick={handleGenerateComments}
-              disabled={!isOwner || aiLoading}
-              className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
-            >
-              {aiLoading ? '생성 중...' : '댓글 생성'}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {aiError && <p className="text-sm text-rose-300">{aiError}</p>}
-          {aiComments.length === 0 && (
-            <p className="text-sm text-slate-200/60">아직 생성된 댓글이 없습니다.</p>
-          )}
-          {aiComments.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {aiComments.map((comment) => (
-                <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge
-                      variant="outline"
-                      className={comment.sentiment === 'pro'
-                        ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10'
-                        : 'border-rose-400/40 text-rose-300 bg-rose-500/10'
-                      }
-                    >
-                      {comment.sentiment === 'pro' ? '찬성' : '반대'}
-                    </Badge>
-                    <span className="text-sm text-slate-200/80">{comment.persona}</span>
-                  </div>
-                  <p className="text-sm text-slate-100/90">{comment.content}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* 자산 현황 - 평가손익 제거 */}
       <Card className="bg-gray-800 border-0 shadow-md rounded-lg overflow-hidden">
@@ -748,6 +704,58 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           )}
         </Card>
       )}
+
+      <Card className="bg-slate-950/40 border-white/10">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              onClick={() => setAiOpen((prev) => !prev)}
+              className="flex items-center gap-2 text-left"
+            >
+              <CardTitle className="text-lg text-slate-100">AI 댓글 (찬성/반대)</CardTitle>
+              {aiOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+            </button>
+            <Button
+              onClick={handleGenerateComments}
+              disabled={!isOwner || aiLoading}
+              className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
+            >
+              {aiLoading ? '생성 중...' : '댓글 생성'}
+            </Button>
+          </div>
+          <p className="text-sm text-slate-200/70">최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
+        </CardHeader>
+        {aiOpen && (
+          <CardContent className="space-y-3">
+            {aiError && <p className="text-sm text-rose-300">{aiError}</p>}
+            {aiComments.length === 0 && (
+              <p className="text-sm text-slate-200/60">아직 생성된 댓글이 없습니다.</p>
+            )}
+            {aiComments.length > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {aiComments.map((comment) => (
+                  <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge
+                        variant="outline"
+                        className={comment.sentiment === 'pro'
+                          ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10'
+                          : 'border-rose-400/40 text-rose-300 bg-rose-500/10'
+                        }
+                      >
+                        {comment.sentiment === 'pro' ? '찬성' : '반대'}
+                      </Badge>
+                      <span className="text-sm text-slate-200/80">{comment.persona}</span>
+                    </div>
+                    <p className="text-sm text-slate-100/90">{comment.content}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
     </div>
   );
 };

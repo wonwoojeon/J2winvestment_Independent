@@ -243,10 +243,10 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
 
   return (
     <div
-      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-12 sm:h-14'} ${className}`}
+      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-16 sm:h-20'} ${className}`}
     >
-      <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
-      <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
+      <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
+      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
       
       <div 
         className="flex items-center h-full animate-scroll-continuous"
@@ -257,9 +257,9 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className={`flex items-center gap-3 ${compact ? 'px-5' : 'px-8'}`}>
-            <span className="text-cyan-300 text-base sm:text-lg opacity-80">✝</span>
-            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm'} font-medium tracking-wide`}>
+          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-5' : 'px-10'}`}>
+            <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-xl'} opacity-80`}>✝</span>
+            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-base sm:text-lg'} font-medium tracking-wide`}>
               {verse}
             </p>
           </div>
@@ -319,25 +319,26 @@ const BackgroundDecor: React.FC = () => {
   );
 };
 
-const FloatingVerseTicker: React.FC = () => (
-  <div className="fixed top-24 sm:top-28 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
+const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
+  <div className="fixed top-12 sm:top-16 left-1/2 z-40 w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-transform duration-300">
     <DashboardBibleVerseTicker
-      compact
-      className="glass-panel rounded-full overflow-hidden bg-slate-950/50"
+      compact={compact}
+      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[1.25] sm:scale-[1.45]'} transition-transform duration-300 origin-top`}
     />
   </div>
 );
 
-const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string }> = ({
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean }> = ({
   children,
   header,
-  contentTopClass = 'pt-20 sm:pt-24'
+  contentTopClass = 'pt-28 sm:pt-32',
+  tickerCompact = false
 }) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
     <BackgroundDecor />
     {header}
     <div className={`relative z-10 pb-20 ${contentTopClass}`}>{children}</div>
-    <FloatingVerseTicker />
+    <FloatingVerseTicker compact={tickerCompact} />
   </div>
 );
 
@@ -889,6 +890,7 @@ function Index() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [reflectionText, setReflectionText] = useState<string>('');
   const [reflectionLoading, setReflectionLoading] = useState(false);
+  const [tickerCompact, setTickerCompact] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -913,6 +915,22 @@ function Index() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setTickerCompact(window.scrollY > 12);
+    };
+    const handleResize = () => {
+      setTickerCompact(window.scrollY > 40);
+    };
+    handleScroll();
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   const loadUserProfile = async (userId: string) => {
@@ -1505,7 +1523,7 @@ function Index() {
 
   if (loading) {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center glass-panel px-8 py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-300 mx-auto mb-4" />
@@ -1518,7 +1536,7 @@ function Index() {
 
   if (currentView === 'publicSearch') {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen">
           <PublicJournalSearch
             onJournalSelect={handlePublicJournalView}
@@ -1532,7 +1550,7 @@ function Index() {
 
   if (currentView === 'publicDetail' && publicJournalResult) {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen">
           <PublicJournalDetail
             result={publicJournalResult}
@@ -1546,7 +1564,7 @@ function Index() {
 
   if (currentView === 'userChart' && selectedUserProfile) {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="container mx-auto p-2 sm:p-4">
           <UserAssetChart
             userProfile={selectedUserProfile}
@@ -1562,7 +1580,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <PageShell contentTopClass="pt-28 sm:pt-32">
+      <PageShell contentTopClass="pt-40 sm:pt-44" tickerCompact={tickerCompact}>
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
@@ -1581,7 +1599,7 @@ function Index() {
 
   if (!user) {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md mx-auto text-center space-y-8 glass-panel px-8 py-10">
             <div className="space-y-4">
@@ -1630,7 +1648,7 @@ function Index() {
 
   if (currentView === 'profile') {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <UserProfile onClose={() => setCurrentView('list')} />
       </PageShell>
     );
@@ -1638,7 +1656,7 @@ function Index() {
 
   if (currentView === 'form') {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <JournalForm
           key={selectedJournal ? selectedJournal.id : 'new'} // 🔥 키를 추가하여 컴포넌트 재생성 강제
           onSubmit={handleJournalSubmit}
@@ -1654,7 +1672,7 @@ function Index() {
 
   if (currentView === 'memoList') {
     return (
-      <PageShell>
+      <PageShell tickerCompact={tickerCompact}>
         <MemoList
           journals={journals}
           onBack={() => setCurrentView('list')}
@@ -1806,6 +1824,7 @@ function Index() {
         )}
       </header>
       )}
+      tickerCompact={tickerCompact}
     >
       
       <main className="container mx-auto px-3 sm:px-6 py-10 space-y-10 max-w-7xl">
