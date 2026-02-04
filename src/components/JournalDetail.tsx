@@ -7,6 +7,7 @@ import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
 import { getImportantMemoTag, getMemoText } from '@/utils/memo';
 import { getJournalExchangeRate } from '@/utils/exchangeRate';
+import { callOpenAiProxy } from '@/lib/llm';
 
 interface JournalDetailProps {
   journal: InvestmentJournal;
@@ -23,6 +24,9 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   const [isOwner, setIsOwner] = useState(false);
   const memoText = getMemoText(journal.memo);
   const importantTag = getImportantMemoTag(journal.memo);
+  const [aiComments, setAiComments] = useState<{ id: string; sentiment: 'pro' | 'con'; persona: string; content: string }[]>([]);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
@@ -36,6 +40,24 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
 
     getCurrentUser();
   }, [journal.user_id]);
+
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!journal.id) return;
+      try {
+        const { data, error } = await supabase
+          .from('journal_ai_comments')
+          .select('id, sentiment, persona, content')
+          .eq('journal_id', journal.id)
+          .order('created_at', { ascending: true });
+        if (error) throw error;
+        setAiComments((data || []) as any);
+      } catch (error) {
+        console.error('❌ AI 댓글 로드 실패:', error);
+      }
+    };
+    loadComments();
+  }, [journal.id]);
 
   // 🔥 매매내역 및 메모가 있을 때 기본으로 펼쳐진 상태로 설정
   const [expandedSections, setExpandedSections] = useState({
@@ -120,6 +142,93 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
 
   const formatCurrency = (num: number) => (hideAssetAmounts ? '비공개' : `${formatNumber(num)}원`);
 
+  const buildAiCommentPrompt = () => {
+    const assetSummary = [
+      `총자산 ${formatNumber(totalAssets)}원`,
+      `현금 KRW ${formatNumber(cashKrw)}원 / USD ${formatNumber(cashUsd)}달러`,
+      `해외주식 ${formatNumber(foreignStocksTotalKRW)}원`,
+      `국내주식 ${formatNumber(domesticStocksTotal)}원`,
+      `크립토 ${formatNumber(cryptoTotalKRW)}원`
+    ].join(', ');
+
+    return [
+      `일지 날짜: ${journal.date}`,
+      `심리지표: F&G ${safeJournal.psychologyCheck.fearGreedIndex ?? '-'}, VIX ${safeJournal.psychologyCheck.vixIndex ?? '-'}, DXY ${safeJournal.psychologyCheck.dxyIndex ?? '-'}, 10Y ${safeJournal.psychologyCheck.us10yYield ?? '-'}`,
+      `자산 요약: ${assetSummary}`,
+      `매매/전략 메모: ${memoText || '없음'}`,
+      `시장 이슈: ${journal.marketIssues || '없음'}`,
+      `계획/실행/이탈: ${journal.planText || '-'} / ${journal.executionText || '-'} / ${journal.deviationReason || '-'}`
+    ].join('\n');
+  };
+
+  const parseCommentsPayload = (raw: string) => {
+    const trimmed = raw.trim();
+    const jsonStart = trimmed.indexOf('[');
+    const jsonEnd = trimmed.lastIndexOf(']');
+    if (jsonStart !== -1 && jsonEnd !== -1) {
+      const jsonText = trimmed.slice(jsonStart, jsonEnd + 1);
+      return JSON.parse(jsonText);
+    }
+    return JSON.parse(trimmed);
+  };
+
+  const handleGenerateComments = async () => {
+    if (!journal.id || !isOwner) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const prompt = buildAiCommentPrompt();
+      const messages = [
+        {
+          role: 'system' as const,
+          content:
+            '너는 투자 일지에 대한 코멘터다. 반드시 JSON 배열로만 응답하라. 각 원소는 { "sentiment": "pro" | "con", "persona": "짧은 페르소나", "comment": "한국어 댓글" } 형식이다. 찬성 5개, 반대 5개. 댓글은 사실 기반, 과장 금지, 1~2문장.'
+        },
+        {
+          role: 'user' as const,
+          content: `다음 정보를 참고해 댓글을 생성해라:\n${prompt}`
+        }
+      ];
+      const res = await callOpenAiProxy(messages, { model: 'gpt-4o-mini', temperature: 0.3, max_tokens: 420 });
+      const content = res?.choices?.[0]?.message?.content || '[]';
+      const parsed = parseCommentsPayload(content);
+      const normalized = (Array.isArray(parsed) ? parsed : []).map((item: any, idx: number) => ({
+        id: `${journal.id}-${idx}-${Date.now()}`,
+        sentiment: item.sentiment === 'con' ? 'con' : 'pro',
+        persona: String(item.persona || '페르소나'),
+        content: String(item.comment || item.content || '')
+      })).filter((item) => item.content.trim().length > 0);
+
+      await supabase
+        .from('journal_ai_comments')
+        .delete()
+        .eq('journal_id', journal.id)
+        .eq('user_id', currentUser?.id);
+
+      if (normalized.length > 0) {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase
+          .from('journal_ai_comments')
+          .insert(
+            normalized.map((item) => ({
+              journal_id: journal.id,
+              user_id: user?.id,
+              sentiment: item.sentiment,
+              persona: item.persona,
+              content: item.content
+            }))
+          );
+      }
+
+      setAiComments(normalized);
+    } catch (error) {
+      console.error('❌ AI 댓글 생성 실패:', error);
+      setAiError('댓글 생성 실패. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   // Fear & Greed Index 분류 함수
   const getFearGreedClassification = (value: number) => {
     if (value >= 75) return { text: '극도의 탐욕', color: 'text-red-500' };
@@ -202,6 +311,51 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </CardContent>
         </Card>
       )}
+
+      <Card className="bg-slate-950/40 border-white/10">
+        <CardHeader className="pb-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="text-lg text-slate-100">AI 댓글 (찬성/반대)</CardTitle>
+              <p className="text-sm text-slate-200/70">최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
+            </div>
+            <Button
+              onClick={handleGenerateComments}
+              disabled={!isOwner || aiLoading}
+              className="bg-cyan-600 hover:bg-cyan-500 text-white"
+            >
+              {aiLoading ? '생성 중...' : '댓글 생성'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {aiError && <p className="text-sm text-rose-300">{aiError}</p>}
+          {aiComments.length === 0 && (
+            <p className="text-sm text-slate-200/60">아직 생성된 댓글이 없습니다.</p>
+          )}
+          {aiComments.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {aiComments.map((comment) => (
+                <div key={comment.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge
+                      variant="outline"
+                      className={comment.sentiment === 'pro'
+                        ? 'border-emerald-400/40 text-emerald-300 bg-emerald-500/10'
+                        : 'border-rose-400/40 text-rose-300 bg-rose-500/10'
+                      }
+                    >
+                      {comment.sentiment === 'pro' ? '찬성' : '반대'}
+                    </Badge>
+                    <span className="text-sm text-slate-200/80">{comment.persona}</span>
+                  </div>
+                  <p className="text-sm text-slate-100/90">{comment.content}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 자산 현황 - 평가손익 제거 */}
       <Card className="bg-gray-800 border-0 shadow-md rounded-lg overflow-hidden">
