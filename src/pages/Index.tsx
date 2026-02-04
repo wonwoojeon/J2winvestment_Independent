@@ -320,7 +320,7 @@ const BackgroundDecor: React.FC = () => {
 };
 
 const FloatingVerseTicker: React.FC = () => (
-  <div className="fixed top-16 sm:top-20 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
+  <div className="fixed top-24 sm:top-28 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
     <DashboardBibleVerseTicker
       compact
       className="glass-panel rounded-full overflow-hidden bg-slate-950/50"
@@ -328,11 +328,15 @@ const FloatingVerseTicker: React.FC = () => (
   </div>
 );
 
-const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode }> = ({ children, header }) => (
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string }> = ({
+  children,
+  header,
+  contentTopClass = 'pt-20 sm:pt-24'
+}) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
     <BackgroundDecor />
     {header}
-    <div className="relative z-10 pb-20 pt-16 sm:pt-20">{children}</div>
+    <div className={`relative z-10 pb-20 ${contentTopClass}`}>{children}</div>
     <FloatingVerseTicker />
   </div>
 );
@@ -1558,7 +1562,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <PageShell>
+      <PageShell contentTopClass="pt-28 sm:pt-32">
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {

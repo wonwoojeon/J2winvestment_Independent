@@ -171,7 +171,15 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
       const jsonText = candidate.slice(jsonStart, jsonEnd + 1);
       return JSON.parse(jsonText);
     }
-    return JSON.parse(candidate);
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      const objects = candidate.match(/\{[\s\S]*?\}/g);
+      if (!objects || objects.length === 0) {
+        throw new Error('AI 댓글 JSON 파싱 실패');
+      }
+      return objects.map((item) => JSON.parse(item));
+    }
   };
 
   const handleGenerateComments = async () => {
@@ -184,7 +192,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
         {
           role: 'system' as const,
           content:
-            '너는 투자 일지에 대한 코멘터다. 반드시 JSON 배열로만 응답하라. 코드블록(```) 금지. 각 원소는 { "sentiment": "pro" | "con", "persona": "짧은 페르소나", "comment": "한국어 댓글" } 형식이다. 찬성 5개, 반대 5개. 댓글은 사실 기반, 과장 금지, 1~2문장.'
+            '너는 투자 일지에 대한 코멘터다. 반드시 JSON 배열로만 응답하라. 코드블록(```) 금지. 각 원소는 { "sentiment": "pro" | "con", "persona": "짧은 페르소나", "comment": "한국어 댓글" } 형식이다. 찬성 5개, 반대 5개. 댓글은 사실 기반, 과장 금지, 1~2문장. 다른 텍스트는 절대 출력하지 말라.'
         },
         {
           role: 'user' as const,
