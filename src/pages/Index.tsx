@@ -162,22 +162,31 @@ const writeCachedText = (key: string | null, content: string): void => {
 type AiCacheType = 'summary' | 'reflection';
 
 // 🙏 성경구절 티커 (대시보드용)
-const DashboardBibleVerseTicker: React.FC = () => {
+const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolean }> = ({
+  className = '',
+  compact = false
+}) => {
   const [shuffledVerses, setShuffledVerses] = useState<string[]>([]);
 
   const BIBLE_VERSES = [
+    "그러므로 이렇게 기도하라 - 마태복음 6:9-13",
     "여호와는 나의 목자시니 내게 부족함이 없으리로다 - 시편 23:1",
+    "복 있는 사람은 악인들의 꾀를 따르지 아니하며 - 시편 1:1",
     "범사에 감사하라 이것이 그리스도 예수 안에서 너희를 향하신 하나님의 뜻이니라 - 데살로니가전서 5:18",
+    "항상 기뻐하라 쉬지 말고 기도하라 범사에 감사하라 - 데살로니가전서 5:16-18",
     "내가 산을 향하여 눈을 들리라 나의 도움이 어디서 올까 - 시편 121:1",
     "수고하고 무거운 짐 진 자들아 다 내게로 오라 내가 너희를 쉬게 하리라 - 마태복음 11:28",
     "내 은혜가 네게 족하도다 이는 내 능력이 약한 데서 온전하여짐이라 - 고린도후서 12:9",
     "모든 것을 할 수 있느니라 나를 능하게 하시는 자 안에서니라 - 빌립보서 4:13",
     "너는 마음을 다하여 여호와를 신뢰하고 네 명철을 의지하지 말라 - 잠언 3:5",
+    "너는 마음을 다하여 여호와를 신뢰하고 그를 인정하라 - 잠언 3:5-6",
+    "여호와를 경외하는 것이 지혜의 근본이라 - 잠언 9:10",
     "여호와께서 너를 지키시며 여호와께서 네 우편에서 네 그늘이 되시나니 - 시편 121:5",
     "평안을 너희에게 끼치노니 곧 나의 평안을 너희에게 주노라 - 요한복음 14:27",
     "사랑하는 자들아 우리가 서로 사랑하자 사랑은 하나님께 속한 것이니라 - 요한일서 4:7",
     "하나님이 세상을 이처럼 사랑하사 독생자를 주셨으니 - 요한복음 3:16",
     "염려를 다 주께 맡기라 이는 그가 너희를 돌보심이라 - 베드로전서 5:7",
+    "무릇 더러운 말은 너희 입 밖에도 내지 말라 - 에베소서 4:29",
     "의인의 길은 돋는 해 빛 같아서 크게 빛나 한낮의 광명에 이르거니와 - 잠언 4:18",
     "여호와는 나의 힘이요 나의 방패시라 내 마음이 그를 의지하여 도움을 얻었도다 - 시편 28:7",
     "하나님께서 모든 것을 합력하여 선을 이루게 하시느니라 - 로마서 8:28",
@@ -192,7 +201,7 @@ const DashboardBibleVerseTicker: React.FC = () => {
     "그런즉 믿음은 들음에서 나며 들음은 그리스도의 말씀으로 말미암았느니라 - 로마서 10:17",
     "새 힘을 얻으리니 독수리가 날개치며 올라감 같을 것이요 - 이사야 40:31",
     "여호와께서 내 편이시라 내가 두려워하지 아니하리니 사람이 내게 어찌할꼬 - 시편 118:6",
-    "태초에 말씀이 계시니라 이 말씀이 하나님과 함께 계셨으니 이 말씀은 곧 하나님이시니라 - 요한복음 1:1",
+    "태초에 말씀이 계시니라 만물이 그로 말미암아 지은 바 되었으니 - 요한복음 1:1-3",
     "그가 찔림은 우리의 허물 때문이요 그가 상함은 우리의 죄악 때문이라 - 이사야 53:5",
     "그러므로 누구든지 그리스도 안에 있으면 새로운 피조물이라 - 고린도후서 5:17",
     "예수께서 이르시되 너희 믿음대로 되라 하시니 - 마태복음 9:29",
@@ -201,6 +210,9 @@ const DashboardBibleVerseTicker: React.FC = () => {
     "그들이 부르기 전에 내가 응답하겠고 그들이 말을 마치기 전에 내가 들으리라 - 이사야 65:24",
     "기도할 때에 무엇이든지 믿고 구하는 것은 다 받으리라 하시니라 - 마태복음 21:22",
     "주 예수 그리스도의 은혜와 하나님의 사랑과 성령의 교통하심이 너희 무리와 함께 있을지어다 - 고린도후서 13:14",
+    "입법자와 재판관은 오직 한 분이시니 - 야고보서 4:12",
+    "두려워하지 말라 내가 너와 함께함이라 - 이사야 41:10",
+    "분을 그치고 노를 버리며 불평하지 말라 - 시편 37:8",
     "돈을 사랑함이 일만 악의 뿌리가 되나니 - 디모데전서 6:10",
     "돈을 사랑하지 말고 있는 바를 족한 줄로 알라 - 히브리서 13:5",
     "너희가 하나님과 재물을 겸하여 섬기지 못하느니라 - 마태복음 6:24",
@@ -230,9 +242,11 @@ const DashboardBibleVerseTicker: React.FC = () => {
   }, []);
 
   return (
-    <div className="bg-slate-900 border-b border-slate-800 overflow-hidden relative h-12 flex items-center shadow-sm">
-      <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-900 to-transparent z-10"></div>
-      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-900 to-transparent z-10"></div>
+    <div
+      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-12 sm:h-14'} ${className}`}
+    >
+      <div className="absolute left-0 top-0 bottom-0 w-10 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
+      <div className="absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
       
       <div 
         className="flex items-center h-full animate-scroll-continuous"
@@ -243,9 +257,9 @@ const DashboardBibleVerseTicker: React.FC = () => {
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className="flex items-center gap-4 px-8">
-            <span className="text-blue-500 text-lg opacity-80">✝</span>
-            <p className="text-slate-300 text-sm font-medium tracking-wide">
+          <div key={index} className={`flex items-center gap-3 ${compact ? 'px-5' : 'px-8'}`}>
+            <span className="text-cyan-300 text-base sm:text-lg opacity-80">✝</span>
+            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm'} font-medium tracking-wide`}>
               {verse}
             </p>
           </div>
@@ -267,6 +281,51 @@ const DashboardBibleVerseTicker: React.FC = () => {
     </div>
   );
 };
+
+const BACKGROUND_VIDEO_URL = 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4';
+
+const BackgroundDecor: React.FC = () => (
+  <div className="fixed inset-0 -z-10 overflow-hidden">
+    <video
+      className="absolute inset-0 h-full w-full object-cover opacity-55"
+      style={{ filter: 'saturate(1.4) hue-rotate(12deg) brightness(0.7)' }}
+      autoPlay
+      muted
+      loop
+      playsInline
+    >
+      <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
+    </video>
+    <div className="absolute inset-0 bg-slate-950/70" />
+    <div
+      className="absolute inset-0 opacity-70"
+      style={{
+        backgroundImage:
+          'radial-gradient(circle at 15% 20%, rgba(56,189,248,0.45), transparent 50%), radial-gradient(circle at 85% 10%, rgba(167,139,250,0.45), transparent 50%), radial-gradient(circle at 80% 80%, rgba(236,72,153,0.35), transparent 55%)'
+      }}
+    />
+    <div className="absolute -top-40 right-[-10%] h-[520px] w-[520px] rounded-full bg-cyan-400/20 blur-[140px] mix-blend-screen" />
+    <div className="absolute bottom-[-20%] left-[-10%] h-[520px] w-[520px] rounded-full bg-indigo-500/20 blur-[160px] mix-blend-screen" />
+  </div>
+);
+
+const FloatingVerseTicker: React.FC = () => (
+  <div className="fixed bottom-4 left-1/2 z-40 w-[min(1100px,94vw)] -translate-x-1/2 px-2">
+    <DashboardBibleVerseTicker
+      compact
+      className="glass-panel rounded-full overflow-hidden bg-slate-950/50"
+    />
+  </div>
+);
+
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode }> = ({ children, header }) => (
+  <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
+    <BackgroundDecor />
+    {header}
+    <div className="relative z-10 pb-28">{children}</div>
+    <FloatingVerseTicker />
+  </div>
+);
 
 type TodoItem = {
   id: string;
@@ -609,14 +668,14 @@ const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
   };
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/60 shadow-lg">
+    <div className="glass-panel bg-slate-950/40">
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-4 w-4 text-emerald-400" />
           <span className="text-slate-100 font-semibold">To do List</span>
-          {loading && <span className="text-xs text-slate-500">동기화 중...</span>}
-          {syncError && <span className="text-xs text-rose-400">{syncError}</span>}
-          <span className="text-xs text-slate-500">
+          {loading && <span className="text-xs text-slate-300/60">동기화 중...</span>}
+          {syncError && <span className="text-xs text-rose-300">{syncError}</span>}
+          <span className="text-xs text-slate-300/70">
             진행 {activeItems.length} · 완료 {completedItems.length}
           </span>
         </div>
@@ -1256,7 +1315,7 @@ function Index() {
   const stanceAndReflectionCards = (
     <>
       {stanceCard && (
-        <Card className="bg-slate-900 border-slate-800 shadow-lg">
+        <Card className="bg-slate-950/40 border-white/10">
           <CardContent className="p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-sm text-slate-400">스탠스</div>
@@ -1279,7 +1338,7 @@ function Index() {
         </Card>
       )}
 
-      <Card className="bg-slate-900 border-slate-800 shadow-lg">
+      <Card className="bg-slate-950/40 border-white/10">
         <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-2">
             <div>
@@ -1346,7 +1405,7 @@ function Index() {
         </CardContent>
       </Card>
 
-      <Card className="bg-slate-900 border-slate-800 shadow-lg">
+      <Card className="bg-slate-950/40 border-white/10">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div>
@@ -1415,42 +1474,48 @@ function Index() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-slate-400">로딩 중...</p>
+      <PageShell>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center glass-panel px-8 py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-300 mx-auto mb-4" />
+            <p className="text-slate-200/80">로딩 중...</p>
+          </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (currentView === 'publicSearch') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <PublicJournalSearch
-          onJournalSelect={handlePublicJournalView}
-          onClose={handleClosePublicSearch}
-          onUserChartView={handleUserChartView}
-        />
-      </div>
+      <PageShell>
+        <div className="min-h-screen">
+          <PublicJournalSearch
+            onJournalSelect={handlePublicJournalView}
+            onClose={handleClosePublicSearch}
+            onUserChartView={handleUserChartView}
+          />
+        </div>
+      </PageShell>
     );
   }
 
   if (currentView === 'publicDetail' && publicJournalResult) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <PublicJournalDetail
-          result={publicJournalResult}
-          onBack={handleClosePublicSearch}
-          exchangeRate={exchangeRate}
-        />
-      </div>
+      <PageShell>
+        <div className="min-h-screen">
+          <PublicJournalDetail
+            result={publicJournalResult}
+            onBack={handleClosePublicSearch}
+            exchangeRate={exchangeRate}
+          />
+        </div>
+      </PageShell>
     );
   }
 
   if (currentView === 'userChart' && selectedUserProfile) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
+      <PageShell>
         <div className="container mx-auto p-2 sm:p-4">
           <UserAssetChart
             userProfile={selectedUserProfile}
@@ -1458,7 +1523,7 @@ function Index() {
             onBack={() => setCurrentView('publicSearch')}
           />
         </div>
-      </div>
+      </PageShell>
     );
   }
 
@@ -1466,7 +1531,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
+      <PageShell>
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
@@ -1479,33 +1544,31 @@ function Index() {
           exchangeRate={exchangeRate}
           hideAssetAmounts={isPublicDetail ? selectedUserProfile?.hide_asset_amounts : false}
         />
-      </div>
+      </PageShell>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex flex-col">
-        <DashboardBibleVerseTicker />
-        
-        <div className="flex-1 flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md mx-auto text-center space-y-8">
+      <PageShell>
+        <div className="min-h-screen flex items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md mx-auto text-center space-y-8 glass-panel px-8 py-10">
             <div className="space-y-4">
               <div className="inline-block p-4 rounded-full bg-blue-500/10 mb-4">
                 <TrendingUp className="w-12 h-12 text-blue-500" />
               </div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              <h1 className="text-3xl sm:text-4xl font-bold font-display bg-gradient-to-r from-cyan-200 via-blue-200 to-purple-200 bg-clip-text text-transparent">
                 빛의경제 투자 매매일지
               </h1>
-              <p className="text-slate-400 text-lg">
+              <p className="text-slate-200/70 text-lg">
                 성공적인 투자를 위한 체계적인 기록과 분석
               </p>
             </div>
             
             <div className="space-y-4">
-              <button 
+              <button
                 onClick={signInWithGoogle}
-                className="w-full bg-white text-slate-900 hover:bg-slate-100 px-8 py-3.5 rounded-xl text-lg font-semibold transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/5"
+                className="w-full bg-white/90 text-slate-900 hover:bg-white px-8 py-3.5 rounded-xl text-lg font-semibold transition-all flex items-center justify-center gap-3 shadow-lg shadow-white/10"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
@@ -1516,37 +1579,35 @@ function Index() {
                 Google로 시작하기
               </button>
               
-              <button 
+              <button
                 onClick={handleGoToPublicSearch}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-slate-700"
+                className="w-full bg-slate-900/70 hover:bg-slate-800/80 text-slate-200 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-white/10 backdrop-blur"
               >
                 <Search className="w-5 h-5" />
                 다른 사용자 일지 검색
               </button>
             </div>
             
-            <p className="text-sm text-slate-500 pt-8">
+            <p className="text-sm text-slate-300/70 pt-4">
               로그인하면 포트폴리오 분석, 자산 추적 등<br/>모든 프리미엄 기능을 무료로 이용할 수 있습니다.
             </p>
           </div>
         </div>
-      </div>
+      </PageShell>
     );
   }
 
   if (currentView === 'profile') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
-        <UserProfile
-          onClose={() => setCurrentView('list')}
-        />
-      </div>
+      <PageShell>
+        <UserProfile onClose={() => setCurrentView('list')} />
+      </PageShell>
     );
   }
 
   if (currentView === 'form') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
+      <PageShell>
         <JournalForm
           key={selectedJournal ? selectedJournal.id : 'new'} // 🔥 키를 추가하여 컴포넌트 재생성 강제
           onSubmit={handleJournalSubmit}
@@ -1556,32 +1617,32 @@ function Index() {
             setSelectedJournal(null);
           }}
         />
-      </div>
+      </PageShell>
     );
   }
 
   if (currentView === 'memoList') {
     return (
-      <div className="min-h-screen bg-slate-950 text-white">
+      <PageShell>
         <MemoList
           journals={journals}
           onBack={() => setCurrentView('list')}
           onJournalClick={handleJournalClick}
         />
-      </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500/30">
-      {/* 헤더 */}
-      <header className="bg-slate-950/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
+    <PageShell
+      header={(
+      <header className="glass-header sticky top-0 z-50">
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('list')}>
-            <div className="bg-blue-600 p-1.5 rounded-lg">
+            <div className="bg-gradient-to-br from-cyan-400 to-blue-600 p-1.5 rounded-lg shadow-lg shadow-cyan-500/30">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-base sm:text-xl font-bold text-slate-100 sm:bg-gradient-to-r sm:from-white sm:to-slate-400 sm:bg-clip-text sm:text-transparent truncate max-w-[140px] sm:max-w-none whitespace-nowrap">
+            <h1 className="text-base sm:text-xl font-bold font-display text-slate-100 sm:bg-gradient-to-r sm:from-white sm:to-slate-300 sm:bg-clip-text sm:text-transparent truncate max-w-[140px] sm:max-w-none whitespace-nowrap">
               빛의경제 투자 매매일지
             </h1>
           </div>
@@ -1603,7 +1664,7 @@ function Index() {
             <Button
               onClick={handleGoToPublicSearch}
               variant="ghost"
-              className="text-slate-400 hover:text-white hover:bg-slate-800"
+              className="text-slate-300 hover:text-white hover:bg-white/10"
             >
               <Search className="h-4 w-4 mr-2" />
               사용자 검색
@@ -1612,30 +1673,30 @@ function Index() {
             <Button
               onClick={() => setCurrentView('profile')}
               variant="ghost"
-              className="text-slate-400 hover:text-white hover:bg-slate-800"
+              className="text-slate-300 hover:text-white hover:bg-white/10"
             >
               <Settings className="h-4 w-4 mr-2" />
               설정
             </Button>
             
-            <div className="h-6 w-px bg-slate-800 mx-2" />
+            <div className="h-6 w-px bg-white/10 mx-2" />
             
             <div className="flex items-center gap-3 mr-4">
               {userProfile?.nickname && (
-                <Badge variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10">
+                <Badge variant="outline" className="border-cyan-300/40 text-cyan-200 bg-cyan-500/10">
                   {userProfile.nickname}
                 </Badge>
               )}
-              <span className="text-sm text-slate-400 hidden lg:inline">
+              <span className="text-sm text-slate-200/70 hidden lg:inline">
                 {user.user_metadata?.full_name || user.email}
               </span>
             </div>
             
-            <Button 
+            <Button
               onClick={signOut}
               variant="ghost"
               size="sm"
-              className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
+              className="text-rose-300 hover:text-rose-200 hover:bg-rose-500/10"
             >
               <LogOut className="h-4 w-4" />
             </Button>
@@ -1645,7 +1706,7 @@ function Index() {
                 setSelectedJournal(null);
                 setCurrentView('form');
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-900/20 ml-2"
+              className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 ml-2"
             >
               <PlusCircle className="h-4 w-4 mr-2" />
               새 일지 작성
@@ -1655,12 +1716,12 @@ function Index() {
 
         {/* 📱 모바일 메뉴 드롭다운 */}
         {mobileMenuOpen && (
-          <div className="sm:hidden border-t border-slate-800 bg-slate-900 absolute w-full left-0 p-4 shadow-2xl animate-in slide-in-from-top-5">
+          <div className="sm:hidden border-t border-white/10 bg-slate-950/80 absolute w-full left-0 p-4 shadow-2xl animate-in slide-in-from-top-5 backdrop-blur-xl">
             <div className="flex flex-col space-y-3">
               <div className="flex items-center justify-between mb-2 px-2">
-                <span className="text-sm text-slate-400">{user.email}</span>
+                <span className="text-sm text-slate-200/70">{user.email}</span>
                 {userProfile?.nickname && (
-                  <Badge variant="outline" className="border-blue-500/30 text-blue-400 bg-blue-500/10">
+                  <Badge variant="outline" className="border-cyan-300/40 text-cyan-200 bg-cyan-500/10">
                     {userProfile.nickname}
                   </Badge>
                 )}
@@ -1672,7 +1733,7 @@ function Index() {
                   setCurrentView('form');
                   setMobileMenuOpen(false);
                 }}
-                className="bg-blue-600 hover:bg-blue-700 w-full justify-start"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 w-full justify-start"
               >
                 <PlusCircle className="h-4 w-4 mr-2" />
                 새 일지 작성
@@ -1681,7 +1742,7 @@ function Index() {
               <Button
                 onClick={handleGoToPublicSearch}
                 variant="ghost"
-                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                className="w-full justify-start text-slate-200 hover:bg-white/10"
               >
                 <Search className="h-4 w-4 mr-2" />
                 사용자 검색
@@ -1693,18 +1754,18 @@ function Index() {
                   setMobileMenuOpen(false);
                 }}
                 variant="ghost"
-                className="w-full justify-start text-slate-300 hover:bg-slate-800"
+                className="w-full justify-start text-slate-200 hover:bg-white/10"
               >
                 <Settings className="h-4 w-4 mr-2" />
                 프로필 설정
               </Button>
               
-              <div className="h-px bg-slate-800 my-2" />
+              <div className="h-px bg-white/10 my-2" />
               
               <Button 
                 onClick={signOut}
                 variant="ghost"
-                className="w-full justify-start text-rose-400 hover:bg-rose-500/10"
+                className="w-full justify-start text-rose-300 hover:bg-rose-500/10"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 로그아웃
@@ -1713,13 +1774,10 @@ function Index() {
           </div>
         )}
       </header>
+      )}
+    >
       
-      <main className="container mx-auto px-2 sm:px-4 py-6 space-y-8 max-w-6xl">
-        {/* 성경구절 티커 */}
-        <div className="rounded-xl overflow-hidden shadow-lg border border-slate-800">
-          <DashboardBibleVerseTicker />
-        </div>
-
+      <main className="container mx-auto px-3 sm:px-6 py-8 space-y-10 max-w-7xl">
         <DashboardTodoList userId={user?.id} />
 
         {/* 리스크 스냅샷 */}
@@ -1737,24 +1795,24 @@ function Index() {
         {/* 최근 투자일지 목록 */}
         <div className="space-y-4">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-500" />
-              최근 투자일지
-            </h2>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-slate-800 text-slate-400">
-                총 {journals.length}개
-              </Badge>
-            </div>
+          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 font-display">
+            <Calendar className="h-5 w-5 text-cyan-300" />
+            최근 투자일지
+          </h2>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-white/10 text-slate-200/70 border border-white/10">
+              총 {journals.length}개
+            </Badge>
           </div>
+        </div>
 
           {journals.length === 0 ? (
-            <Card className="bg-slate-900 border-slate-800 border-dashed">
+            <Card className="border-white/15 border-dashed bg-white/5">
               <CardContent className="py-12 text-center">
                 <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <PlusCircle className="h-8 w-8 text-slate-600" />
+                  <PlusCircle className="h-8 w-8 text-slate-300/70" />
                 </div>
-                <p className="text-slate-400 mb-2">아직 작성된 일지가 없습니다.</p>
+                <p className="text-slate-200/70 mb-2">아직 작성된 일지가 없습니다.</p>
                 <Button 
                   onClick={() => {
                     setSelectedJournal(null);
@@ -1768,55 +1826,55 @@ function Index() {
               </CardContent>
             </Card>
           ) : (
-            <ScrollArea className="h-[500px] rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+            <ScrollArea className="h-[500px] rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4">
               <div className="space-y-3">
                 {journals.map((journal) => (
                   <div 
                     key={journal.id}
                     onClick={() => handleJournalClick(journal)}
-                    className="group bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-900/10 hover:-translate-y-0.5 relative overflow-hidden"
+                    className="group bg-white/5 border border-white/10 hover:border-cyan-300/40 rounded-2xl p-4 cursor-pointer transition-all hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-0.5 relative overflow-hidden backdrop-blur-xl"
                   >
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-cyan-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                     
                     <div className="flex flex-col sm:flex-row gap-4 justify-between">
                       <div className="space-y-2 flex-1">
                         <div className="flex items-center gap-3">
-                          <span className="text-lg font-bold text-slate-200 font-mono">
+                          <span className="text-lg font-bold text-slate-100 font-mono">
                             {formatDate(journal.date)}
                           </span>
                           {journal.psychologyCheck && (
                             <Badge variant="outline" className={`text-xs ${
                               journal.psychologyCheck.fearGreedIndex > 75 ? 'border-red-500/50 text-red-400' :
                               journal.psychologyCheck.fearGreedIndex < 25 ? 'border-blue-500/50 text-blue-400' :
-                              'border-yellow-500/50 text-yellow-400'
+                              'border-yellow-400/50 text-yellow-300'
                             }`}>
                               F&G: {journal.psychologyCheck.fearGreedIndex}
                             </Badge>
                           )}
                         </div>
                         
-                        <div className="flex items-center gap-2 text-sm text-slate-400">
-                          <span className="font-medium text-slate-300">총 자산:</span>
-                          <span className="font-mono">{formatKoreanCurrency(journal.totalAssets || 0)}</span>
+                        <div className="flex items-center gap-2 text-sm text-slate-200/70">
+                          <span className="font-medium text-slate-200/70">총 자산:</span>
+                          <span className="font-mono text-slate-100">{formatKoreanCurrency(journal.totalAssets || 0)}</span>
                         </div>
 
                         {(getMemoText(journal.memo) || journal.marketIssues) && (
-                          <p className="text-sm text-slate-500 line-clamp-1">
+                          <p className="text-sm text-slate-200/60 line-clamp-1">
                             {getMemoText(journal.memo) || journal.marketIssues}
                           </p>
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 sm:self-center pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-800 mt-2 sm:mt-0">
+                      <div className="flex items-center gap-2 sm:self-center pt-2 sm:pt-0 border-t sm:border-t-0 border-white/10 mt-2 sm:mt-0">
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="flex-1 sm:flex-none text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                          className="flex-1 sm:flex-none text-slate-200/70 hover:text-cyan-300 hover:bg-cyan-500/10"
                         >
                           <Eye className="h-4 w-4 mr-2" />
                           보기
                         </Button>
-                        <div className="w-px h-4 bg-slate-700 hidden sm:block" />
+                        <div className="w-px h-4 bg-white/10 hidden sm:block" />
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1825,12 +1883,12 @@ function Index() {
                           }}
                           variant="ghost"
                           size="sm"
-                          className="flex-1 sm:flex-none text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                          className="flex-1 sm:flex-none text-slate-200/70 hover:text-emerald-300 hover:bg-emerald-500/10"
                         >
                           <Edit className="h-4 w-4 mr-2" />
                           수정
                         </Button>
-                        <div className="w-px h-4 bg-slate-700 hidden sm:block" />
+                        <div className="w-px h-4 bg-white/10 hidden sm:block" />
                         <Button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -1840,7 +1898,7 @@ function Index() {
                           }}
                           variant="ghost"
                           size="sm"
-                          className="flex-1 sm:flex-none text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
+                          className="flex-1 sm:flex-none text-slate-200/70 hover:text-rose-300 hover:bg-rose-500/10"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -1853,7 +1911,7 @@ function Index() {
           )}
         </div>
       </main>
-    </div>
+    </PageShell>
   );
 }
 
