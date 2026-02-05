@@ -115,7 +115,7 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 bg-gray-900 text-white min-h-screen">
+    <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/70 via-slate-950/60 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
       {/* 헤더 - 공개 일지임을 표시 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

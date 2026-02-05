@@ -28,6 +28,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
+  const hasComments = aiComments.length > 0;
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
@@ -280,7 +281,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 bg-gray-900 text-white min-h-screen">
+    <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/70 via-slate-950/60 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
       {/* 🔥 헤더 - 작성자만 수정/삭제 버튼 표시 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -716,13 +717,11 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               <CardTitle className="text-lg text-slate-100">AI 댓글 (찬성/반대)</CardTitle>
               {aiOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
             </button>
-            <Button
-              onClick={handleGenerateComments}
-              disabled={!isOwner || aiLoading}
-              className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
-            >
-              {aiLoading ? '생성 중...' : '댓글 생성'}
-            </Button>
+            {hasComments && !aiOpen && (
+              <Badge variant="outline" className="border-emerald-400/40 text-emerald-300 bg-emerald-500/10 w-fit">
+                생성됨
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-slate-200/70">최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
         </CardHeader>
@@ -753,6 +752,15 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 ))}
               </div>
             )}
+            <div className="flex justify-end pt-2">
+              <Button
+                onClick={handleGenerateComments}
+                disabled={!isOwner || aiLoading}
+                className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
+              >
+                {aiLoading ? '생성 중...' : hasComments ? '댓글 다시 생성' : '댓글 생성'}
+              </Button>
+            </div>
           </CardContent>
         )}
       </Card>

@@ -11,13 +11,13 @@ import AssetChangeChart from '../components/AssetChangeChart';
 import { MemoList } from '../components/MemoList';
 import { RiskSnapshot } from '../components/RiskSnapshot';
 import { ScenarioTracker } from '../components/ScenarioTracker';
+import { DashboardTodoList } from '@/components/DashboardTodoList';
 import { InvestmentJournal, PublicJournalSearchResult } from '../types/investment';
 import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { callOpenAiProxy } from '@/lib/llm';
 import { getJournalExchangeRate } from '@/utils/exchangeRate';
 import { 
@@ -25,7 +25,6 @@ import {
   Settings, 
   Search, 
   LogOut, 
-  Plus,
   PlusCircle, 
   TrendingUp, 
   Calendar,
@@ -37,9 +36,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  ChevronRight,
-  MessageSquare,
-  CheckCircle2
+  ChevronRight
 } from 'lucide-react';
 
 // 통화 포맷팅
@@ -243,7 +240,7 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
 
   return (
     <div
-      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-16 sm:h-20'} ${className}`}
+      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-12 sm:h-16'} ${className}`}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
@@ -257,9 +254,9 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-5' : 'px-10'}`}>
-            <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-xl'} opacity-80`}>✝</span>
-            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-base sm:text-lg'} font-medium tracking-wide`}>
+          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-4' : 'px-8'}`}>
+            <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-lg'} opacity-80`}>✝</span>
+            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} font-medium tracking-wide`}>
               {verse}
             </p>
           </div>
@@ -320,10 +317,10 @@ const BackgroundDecor: React.FC = () => {
 };
 
 const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <div className="fixed top-12 sm:top-16 left-1/2 z-40 w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-transform duration-300">
+  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-16 sm:top-20'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
     <DashboardBibleVerseTicker
       compact={compact}
-      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[1.25] sm:scale-[1.45]'} transition-transform duration-300 origin-top`}
+      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.9] sm:scale-[1.05]'} transition-transform duration-300 origin-top`}
     />
   </div>
 );
@@ -331,7 +328,7 @@ const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false 
 const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean }> = ({
   children,
   header,
-  contentTopClass = 'pt-28 sm:pt-32',
+  contentTopClass = 'pt-32 sm:pt-36',
   tickerCompact = false
 }) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
@@ -355,29 +352,10 @@ const INVESTOR_QUOTES = [
   { name: '조지 소로스', quote: '틀렸음을 인정하고 수정하는 것이 핵심이다.' }
 ];
 
-type TodoItem = {
-  id: string;
-  text: string;
-  createdAt: string;
-  completedAt?: string | null;
-};
-
-type TodoRow = {
-  id: string;
-  text: string;
-  created_at: string;
-  completed_at: string | null;
-};
-
 type StanceInfo = {
   stance: string;
   desc: string;
   tone: 'positive' | 'neutral' | 'warning';
-};
-
-const formatTodoDate = (dateStr: string) => {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
 };
 
 type MacroEvent = {
@@ -468,411 +446,6 @@ const deriveStance = (journal: InvestmentJournal | null, exchangeRate: number): 
   };
 };
 
-const DashboardTodoList: React.FC<{ userId?: string }> = ({ userId }) => {
-  const storageKey = useMemo(() => `dashboard_todos_${userId || 'guest'}`, [userId]);
-  const [items, setItems] = useState<TodoItem[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
-  const [completedOpen, setCompletedOpen] = useState(false);
-  const [showInput, setShowInput] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editText, setEditText] = useState('');
-  const [editDate, setEditDate] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const loadLocalItems = () => {
-      if (typeof window === 'undefined') return;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved) as TodoItem[];
-          if (Array.isArray(parsed)) {
-            setItems(parsed);
-          }
-        } catch (error) {
-          console.error('❌ 투두 리스트 로드 실패:', error);
-        }
-      }
-    };
-
-    const loadRemoteItems = async () => {
-      if (!userId) return;
-      setLoading(true);
-      setSyncError(null);
-      try {
-        const { data, error } = await supabase
-          .from('dashboard_todos')
-          .select('id, text, created_at, completed_at')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: true });
-        if (error) throw error;
-        const rows = (data || []) as TodoRow[];
-        setItems(
-          rows.map((row) => ({
-            id: row.id,
-            text: row.text,
-            createdAt: row.created_at,
-            completedAt: row.completed_at
-          }))
-        );
-      } catch (error) {
-        console.error('❌ 투두 리스트 동기화 실패:', error);
-        setSyncError('동기화 실패');
-        loadLocalItems();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    setItems([]);
-    if (userId) {
-      loadRemoteItems();
-    } else {
-      loadLocalItems();
-    }
-  }, [storageKey, userId]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(storageKey, JSON.stringify(items));
-  }, [items, storageKey]);
-
-  useEffect(() => {
-    if (showInput) {
-      inputRef.current?.focus();
-    }
-  }, [showInput, isOpen]);
-
-  const activeItems = items
-    .filter((item) => !item.completedAt)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  const completedItems = items
-    .filter((item) => item.completedAt)
-    .sort((a, b) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
-
-  const handleAddItem = async () => {
-    const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    if (!userId) {
-      const nextItem: TodoItem = {
-        id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-        text: trimmed,
-        createdAt: new Date().toISOString(),
-        completedAt: null
-      };
-      setItems((prev) => [...prev, nextItem]);
-      setInputValue('');
-      setShowInput(false);
-      setIsOpen(true);
-      return;
-    }
-
-    try {
-      setSyncError(null);
-      const { data, error } = await supabase
-        .from('dashboard_todos')
-        .insert({
-          user_id: userId,
-          text: trimmed,
-          created_at: new Date().toISOString(),
-          completed_at: null
-        })
-        .select('id, text, created_at, completed_at')
-        .single();
-      if (error) throw error;
-      const row = data as TodoRow;
-      setItems((prev) => [
-        ...prev,
-        {
-          id: row.id,
-          text: row.text,
-          createdAt: row.created_at,
-          completedAt: row.completed_at
-        }
-      ]);
-      setInputValue('');
-      setShowInput(false);
-      setIsOpen(true);
-    } catch (error) {
-      console.error('❌ 투두 추가 실패:', error);
-      setSyncError('추가 실패');
-    }
-  };
-
-  const handleToggleComplete = async (id: string, checked: boolean) => {
-    const completedAt = checked ? new Date().toISOString() : null;
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, completedAt }
-          : item
-      )
-    );
-    if (!userId) return;
-    try {
-      setSyncError(null);
-      const { error } = await supabase
-        .from('dashboard_todos')
-        .update({ completed_at: completedAt })
-        .eq('id', id)
-        .eq('user_id', userId);
-      if (error) throw error;
-    } catch (error) {
-      console.error('❌ 완료 상태 업데이트 실패:', error);
-      setSyncError('업데이트 실패');
-    }
-  };
-
-  const startEditing = (item: TodoItem) => {
-    setEditingId(item.id);
-    setEditText(item.text);
-    const completedDate = item.completedAt
-      ? item.completedAt.split('T')[0]
-      : new Date().toISOString().split('T')[0];
-    setEditDate(completedDate);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingId) return;
-    const currentItem = items.find((item) => item.id === editingId);
-    if (!currentItem) return;
-    const trimmed = editText.trim();
-    const nextText = trimmed || currentItem.text;
-    const nextCompletedAt = editDate
-      ? new Date(editDate).toISOString()
-      : currentItem.completedAt;
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === editingId
-          ? {
-              ...item,
-              text: nextText,
-              completedAt: nextCompletedAt
-            }
-          : item
-      )
-    );
-    if (userId) {
-      try {
-        setSyncError(null);
-        const { error } = await supabase
-          .from('dashboard_todos')
-          .update({
-            text: nextText,
-            completed_at: nextCompletedAt
-          })
-          .eq('id', editingId)
-          .eq('user_id', userId);
-        if (error) throw error;
-      } catch (error) {
-        console.error('❌ 완료 항목 수정 실패:', error);
-        setSyncError('수정 실패');
-      }
-    }
-    setEditingId(null);
-  };
-
-  const handleDeleteItem = async (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-    if (editingId === id) {
-      setEditingId(null);
-    }
-    if (!userId) return;
-    try {
-      setSyncError(null);
-      const { error } = await supabase
-        .from('dashboard_todos')
-        .delete()
-        .eq('id', id)
-        .eq('user_id', userId);
-      if (error) throw error;
-    } catch (error) {
-      console.error('❌ 완료 항목 삭제 실패:', error);
-      setSyncError('삭제 실패');
-    }
-  };
-
-  return (
-    <div className="glass-panel bg-slate-950/40">
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-          <span className="text-slate-100 font-semibold">To do List</span>
-          {loading && <span className="text-xs text-slate-300/60">동기화 중...</span>}
-          {syncError && <span className="text-xs text-rose-300">{syncError}</span>}
-          <span className="text-xs text-slate-300/70">
-            진행 {activeItems.length} · 완료 {completedItems.length}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-slate-300 hover:bg-slate-800"
-            onClick={() => {
-              setIsOpen(true);
-              setShowInput(true);
-            }}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-slate-300 hover:text-white hover:bg-slate-800"
-            onClick={() => setIsOpen((prev) => !prev)}
-          >
-            {isOpen ? '접기' : '펼치기'}
-            {isOpen ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-          </Button>
-        </div>
-      </div>
-
-      {isOpen && (
-        <div className="px-4 pb-4 space-y-3">
-          {showInput && (
-            <div className="flex items-center gap-2">
-              <Input
-                ref={inputRef}
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleAddItem();
-                  }
-                  if (e.key === 'Escape') {
-                    setShowInput(false);
-                    setInputValue('');
-                  }
-                }}
-                placeholder="할 일을 입력하세요"
-                className="bg-slate-800 border-slate-700 text-white"
-              />
-              <Button
-                type="button"
-                className="bg-emerald-600 hover:bg-emerald-700"
-                onClick={handleAddItem}
-              >
-                추가
-              </Button>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {activeItems.length === 0 ? (
-              <div className="text-sm text-slate-500">지금은 할 일이 없어요.</div>
-            ) : (
-              activeItems.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-200"
-                >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(item.completedAt)}
-                    onChange={(e) => handleToggleComplete(item.id, e.target.checked)}
-                    className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500/50"
-                  />
-                  <span className="flex-1">{item.text}</span>
-                  <span className="text-xs text-slate-500">
-                    {formatTodoDate(item.createdAt)}
-                  </span>
-                </label>
-              ))
-            )}
-          </div>
-
-          <div className="border-t border-slate-800 pt-2">
-            <button
-              type="button"
-              className="flex items-center gap-2 text-sm text-slate-400 hover:text-slate-200"
-              onClick={() => setCompletedOpen((prev) => !prev)}
-            >
-              완료 목록 {completedItems.length}개
-              {completedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            {completedOpen && (
-              <div className="mt-3 space-y-2">
-                {completedItems.length === 0 ? (
-                  <div className="text-sm text-slate-500">완료된 항목이 없습니다.</div>
-                ) : (
-                  completedItems.map((item) => (
-                    <div
-                      key={item.id}
-                      className="rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-slate-400"
-                    >
-                      {editingId === item.id ? (
-                        <div className="space-y-2">
-                          <Input
-                            value={editText}
-                            onChange={(e) => setEditText(e.target.value)}
-                            className="bg-slate-800 border-slate-700 text-white"
-                          />
-                          <div className="flex items-center gap-2">
-                            <Input
-                              type="date"
-                              value={editDate}
-                              onChange={(e) => setEditDate(e.target.value)}
-                              className="bg-slate-800 border-slate-700 text-white"
-                            />
-                            <Button
-                              type="button"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                              onClick={handleSaveEdit}
-                            >
-                              저장
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="border-slate-700 text-slate-300 hover:bg-slate-800"
-                              onClick={() => setEditingId(null)}
-                            >
-                              취소
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="text-rose-400 hover:text-rose-300 hover:bg-rose-500/10"
-                              onClick={() => handleDeleteItem(item.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              삭제
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between gap-3 text-left"
-                          onClick={() => startEditing(item)}
-                        >
-                          <span className="flex-1 line-through">{item.text}</span>
-                          {item.completedAt && (
-                            <span className="text-xs text-slate-500">
-                              완료 {formatTodoDate(item.completedAt)}
-                            </span>
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
 function Index() {
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
@@ -891,6 +464,8 @@ function Index() {
   const [reflectionText, setReflectionText] = useState<string>('');
   const [reflectionLoading, setReflectionLoading] = useState(false);
   const [tickerCompact, setTickerCompact] = useState(true);
+  const [headerHidden, setHeaderHidden] = useState(false);
+  const lastScrollYRef = useRef(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -919,19 +494,35 @@ function Index() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setTickerCompact(window.scrollY > 12);
-    };
-    const handleResize = () => {
-      setTickerCompact(window.scrollY > 40);
+      const current = window.scrollY;
+      setTickerCompact(current > 80);
+
+      const isMobile = window.innerWidth < 640;
+      if (!isMobile) {
+        setHeaderHidden(false);
+      } else if (mobileMenuOpen) {
+        setHeaderHidden(false);
+      } else {
+        const delta = current - lastScrollYRef.current;
+        if (current < 8) {
+          setHeaderHidden(false);
+        } else if (delta > 6) {
+          setHeaderHidden(true);
+        } else if (delta < -6) {
+          setHeaderHidden(false);
+        }
+      }
+
+      lastScrollYRef.current = current;
     };
     handleScroll();
-    window.addEventListener('scroll', handleScroll);
-    window.addEventListener('resize', handleResize);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', handleScroll);
     };
-  }, []);
+  }, [mobileMenuOpen]);
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -1580,7 +1171,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <PageShell contentTopClass="pt-40 sm:pt-44" tickerCompact={tickerCompact}>
+      <PageShell contentTopClass="pt-36 sm:pt-40" tickerCompact={tickerCompact}>
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
@@ -1685,10 +1276,10 @@ function Index() {
   return (
     <PageShell
       header={(
-      <header className="glass-header sticky top-0 z-50">
+      <header className={`glass-header sticky top-0 z-50 transition-transform duration-300 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('list')}>
-            <div className="bg-gradient-to-br from-cyan-400 to-blue-600 p-1.5 rounded-lg shadow-lg shadow-cyan-500/30">
+            <div className="bg-gradient-to-br from-emerald-400 to-green-600 p-1.5 rounded-lg shadow-lg shadow-emerald-500/30">
               <TrendingUp className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-base sm:text-xl font-bold font-display text-slate-100 sm:bg-gradient-to-r sm:from-white sm:to-slate-300 sm:bg-clip-text sm:text-transparent truncate max-w-[140px] sm:max-w-none whitespace-nowrap">

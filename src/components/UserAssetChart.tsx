@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { DashboardTodoList } from '@/components/DashboardTodoList';
+import { ArrowLeft, User, Calendar, Eye } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
 import AssetChangeChart from './AssetChangeChart';
@@ -43,7 +46,9 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
   onBack
 }) => {
   const [latestJournal, setLatestJournal] = useState<InvestmentJournal | null>(null);
+  const [journals, setJournals] = useState<InvestmentJournal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingJournals, setLoadingJournals] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hideAssetAmounts = Boolean(userProfile?.hide_asset_amounts);
@@ -51,6 +56,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
   useEffect(() => {
     if (userProfile?.user_id) {
       loadLatestJournal();
+      loadJournals();
     }
   }, [userProfile?.user_id]);
 
@@ -74,6 +80,29 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
       setLoading(false);
     }
   };
+
+  const loadJournals = async () => {
+    if (!userProfile?.user_id) return;
+    try {
+      setLoadingJournals(true);
+      const { data, error } = await supabase
+        .from('investment_journals')
+        .select('*')
+        .eq('user_id', userProfile.user_id)
+        .order('date', { ascending: false });
+      if (error) throw error;
+      const mapped = (data || []).map((item) => mapJournal(item));
+      setJournals(mapped);
+    } catch (err) {
+      console.error('❌ 공개 사용자 일지 목록 로드 실패:', err);
+      setJournals([]);
+    } finally {
+      setLoadingJournals(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('ko-KR');
+  const formatCurrency = (value: number) => (hideAssetAmounts ? '비공개' : `${Math.floor(value).toLocaleString()}원`);
 
   const handlePointClick = async (date: string) => {
     if (!userProfile?.user_id) return;
@@ -101,7 +130,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen text-white">
       <div className="container mx-auto p-2 sm:p-4 max-w-6xl space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
@@ -116,6 +145,19 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
           <div className="flex items-center gap-2 text-sm text-slate-300">
             <User className="h-4 w-4 text-blue-400" />
             <span className="font-medium">{userProfile?.nickname || '공개 사용자'}</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:items-start">
+          <DashboardTodoList userId={userProfile?.user_id} readOnly />
+          <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">
+            <div className="text-xs uppercase tracking-[0.3em] text-indigo-200/70">Public Profile</div>
+            <div className="text-lg font-semibold text-slate-100">
+              {userProfile?.nickname || '공개 사용자'}
+            </div>
+            <p className="text-sm text-slate-200/70 leading-relaxed">
+              공개 계정의 투두와 최근 일지를 확인할 수 있습니다.
+            </p>
           </div>
         </div>
 
@@ -144,6 +186,73 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
         {loadingDetail && (
           <div className="text-xs text-slate-500 text-center">상세 일지를 불러오는 중...</div>
         )}
+
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 font-display">
+              <Calendar className="h-5 w-5 text-cyan-300" />
+              최근 투자일지
+            </h2>
+            <Badge variant="secondary" className="bg-white/10 text-slate-200/70 border border-white/10">
+              총 {journals.length}개
+            </Badge>
+          </div>
+
+          {loadingJournals ? (
+            <Card className="border-white/10 bg-white/5">
+              <CardContent className="py-8 text-center text-sm text-slate-400">일지 불러오는 중...</CardContent>
+            </Card>
+          ) : journals.length === 0 ? (
+            <Card className="border-white/15 border-dashed bg-white/5">
+              <CardContent className="py-10 text-center text-sm text-slate-300/70">공개된 일지가 없습니다.</CardContent>
+            </Card>
+          ) : (
+            <ScrollArea className="h-[420px] rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4">
+              <div className="space-y-3">
+                {journals.map((journal) => (
+                  <div
+                    key={journal.id}
+                    onClick={() => onJournalClick(journal)}
+                    className="group bg-white/5 border border-white/10 hover:border-cyan-300/40 rounded-2xl p-4 cursor-pointer transition-all hover:shadow-lg hover:shadow-cyan-500/10 hover:-translate-y-0.5 relative overflow-hidden backdrop-blur-xl"
+                  >
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-cyan-400 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex flex-col sm:flex-row gap-3 justify-between">
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-bold text-slate-100 font-mono">
+                            {formatDate(journal.date)}
+                          </span>
+                          {journal.psychologyCheck && (
+                            <Badge variant="outline" className={`text-xs ${
+                              journal.psychologyCheck.fearGreedIndex > 75 ? 'border-red-500/50 text-red-400' :
+                              journal.psychologyCheck.fearGreedIndex < 25 ? 'border-blue-500/50 text-blue-400' :
+                              'border-yellow-400/50 text-yellow-300'
+                            }`}>
+                              F&G: {journal.psychologyCheck.fearGreedIndex}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-sm text-slate-300">
+                          총자산: {formatCurrency(journal.totalAssets || 0)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-slate-200/70 hover:text-cyan-300 hover:bg-cyan-500/10"
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          보기
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </div>
       </div>
     </div>
   );

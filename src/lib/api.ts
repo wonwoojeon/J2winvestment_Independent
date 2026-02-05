@@ -95,13 +95,19 @@ const getLatestNumericObservation = (observations: FredObservation[]) => {
   return null;
 };
 
-const fetchFredSeriesValueByDate = async (seriesId: string, date: string, lookbackDays = 120) => {
+const fetchFredSeriesValueByDate = async (
+  seriesId: string,
+  date: string,
+  lookbackDays = 120,
+  extraParams: Record<string, string> = {}
+) => {
   const observationStart = subtractDays(date, lookbackDays);
   const observations = await fetchFredSeriesObservations(seriesId, {
     observation_start: observationStart,
     observation_end: date,
     sort_order: 'desc',
-    limit: '10'
+    limit: '40',
+    ...extraParams
   });
   return getLatestNumericObservation(observations)?.value ?? null;
 };
@@ -303,7 +309,7 @@ export async function fetchComprehensivePsychologyData(targetDate?: string): Pro
       fetchFredSeriesValueByDate('DGS10', date),
       fetchFredSeriesValueByDate('BAMLH0A0HYM2', date),
       fetchFredSeriesValueByDate('GDPNOW', date, 365),
-      fetchFredSeriesValueByDate('DTWEXBGS', date),
+      fetchFredSeriesValueByDate('DTWEXBGS', date, 365, { frequency: 'w' }),
       fetchFredSeriesValueByDate('UNRATE', date, 365),
       fetchSp500Rsi(date)
     ]);
@@ -348,9 +354,19 @@ export async function fetchComprehensivePsychologyData(targetDate?: string): Pro
     const gdpNow = gdpNowResult.status === 'fulfilled' && gdpNowResult.value !== null
       ? formatPercent(gdpNowResult.value, 2)
       : undefined;
-    const dxyIndex = dxyResult.status === 'fulfilled' && dxyResult.value !== null
+    let dxyIndex = dxyResult.status === 'fulfilled' && dxyResult.value !== null
       ? formatNumber(dxyResult.value, 2)
       : undefined;
+    if (!dxyIndex) {
+      try {
+        const fallback = await fetchFredSeriesValueByDate('DTWEXB', date, 365, { frequency: 'w' });
+        if (fallback !== null) {
+          dxyIndex = formatNumber(fallback, 2);
+        }
+      } catch (error) {
+        console.warn('⚠️ DXY 대체 데이터 로드 실패:', error);
+      }
+    }
     const unemploymentRate = unemploymentResult.status === 'fulfilled' && unemploymentResult.value !== null
       ? formatPercent(unemploymentResult.value, 1)
       : undefined;
