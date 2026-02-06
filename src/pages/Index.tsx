@@ -318,14 +318,15 @@ const BackgroundDecor: React.FC = () => {
   );
 };
 
-const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; contentTopExtra?: number; tickerCompact?: boolean; hasHeader?: boolean; headerHidden?: boolean }> = ({
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; contentTopExtra?: number; tickerCompact?: boolean; hasHeader?: boolean; headerHidden?: boolean; tickerHidden?: boolean }> = ({
   children,
   header,
   contentTopClass,
   contentTopExtra = 0,
   tickerCompact = false,
   hasHeader = false,
-  headerHidden = false
+  headerHidden = false,
+  tickerHidden = false
 }) => {
   const defaultPaddingTop = hasHeader ? 'var(--shell-top-with-header)' : 'var(--shell-top-without-header)';
   const paddingTop = `calc(${defaultPaddingTop} + ${contentTopExtra}px)`;
@@ -336,6 +337,7 @@ const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode;
         header={header}
         compact={tickerCompact}
         headerHidden={headerHidden}
+        tickerHidden={tickerHidden}
         ticker={(
           <DashboardBibleVerseTicker
             compact={tickerCompact}
@@ -1430,6 +1432,7 @@ function Index() {
       tickerCompact={tickerCompact}
       hasHeader
       headerHidden={headerHidden}
+      tickerHidden={mobileMenuOpen}
     >
       
       <main className="container mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-10 max-w-7xl">

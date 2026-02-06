@@ -202,6 +202,16 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
     }));
   };
 
+  const formatScenarioDate = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   return (
     <Card className="bg-slate-900 border-slate-800 shadow-xl">
       <CardHeader className="pb-3 border-b border-slate-800/50">
@@ -210,30 +220,6 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
             시나리오 트래커
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-1 py-1">
-              <Type className="h-3.5 w-3.5 text-slate-300" />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-                onClick={() => adjustFontScale(-1)}
-                disabled={fontScale === 'sm'}
-                aria-label="글자 크기 줄이기"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </Button>
-              <span className="px-1 text-xs text-slate-300">{fontScale.toUpperCase()}</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-                onClick={() => adjustFontScale(1)}
-                disabled={fontScale === 'lg'}
-                aria-label="글자 크기 키우기"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
             <Button
               variant="outline"
               size="sm"
@@ -359,6 +345,9 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                     >
                       {scenario.title}
                     </div>
+                    <div className={`${subTextClass} text-slate-400 mt-1`}>
+                      작성일: {formatScenarioDate(scenario.created_at)}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 flex-nowrap">
                     <Badge variant="outline" className={`${subTextClass} shrink-0 ${statusStyles[scenario.status]}`}>
@@ -419,6 +408,32 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                 </div>
                 {isExpanded && (
                   <div className="space-y-2">
+                    <div className="flex items-center justify-end">
+                      <div className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-1 py-1">
+                        <Type className="h-3.5 w-3.5 text-slate-300" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+                          onClick={() => adjustFontScale(-1)}
+                          disabled={fontScale === 'sm'}
+                          aria-label="글자 크기 줄이기"
+                        >
+                          <Minus className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="px-1 text-xs text-slate-300">{fontScale.toUpperCase()}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+                          onClick={() => adjustFontScale(1)}
+                          disabled={fontScale === 'lg'}
+                          aria-label="글자 크기 키우기"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
                     {scenario.hypothesis && (
                       <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
                         가정: {scenario.hypothesis}
