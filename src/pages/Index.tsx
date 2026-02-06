@@ -234,6 +234,7 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   ];
 
   useEffect(() => {
+    setShuffledVerses(BIBLE_VERSES);
     const shuffled = [...BIBLE_VERSES].sort(() => Math.random() - 0.5);
     setShuffledVerses(shuffled);
   }, []);
@@ -317,7 +318,7 @@ const BackgroundDecor: React.FC = () => {
 };
 
 const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[72px] sm:top-[92px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
+  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[60px] sm:top-[76px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
     <DashboardBibleVerseTicker
       compact={compact}
       className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.95] sm:scale-[1.08]'} transition-transform duration-300 origin-top`}

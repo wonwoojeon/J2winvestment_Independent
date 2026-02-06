@@ -284,15 +284,17 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
     <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/60 via-slate-950/50 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
       {/* 🔥 헤더 - 작성자만 수정/삭제 버튼 표시 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-          <Button variant="outline" size="sm" onClick={onBack} className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white w-fit">
+        <h1 className="text-2xl font-bold break-keep">{journal.date} 투자일지</h1>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBack}
+            className="border-white/10 text-slate-200 bg-slate-900/70 hover:bg-slate-800 w-fit"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             목록으로
           </Button>
-          <h1 className="text-2xl font-bold break-keep">{journal.date} 투자일지</h1>
-        </div>
-        {/* 🔥 작성자만 수정/삭제 버튼 표시 */}
-        <div className="flex items-center gap-2 flex-wrap">
           <Button 
             onClick={handleDelete} 
             variant="outline"
