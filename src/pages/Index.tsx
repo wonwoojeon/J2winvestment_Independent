@@ -240,7 +240,7 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
 
   return (
     <div
-      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-12 sm:h-16'} ${className}`}
+      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-14 sm:h-16'} ${className}`}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
@@ -254,9 +254,9 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-4' : 'px-8'}`}>
+          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-4' : 'px-9'}`}>
             <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-lg'} opacity-80`}>✝</span>
-            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'} font-medium tracking-wide`}>
+            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-[15px]'} font-medium tracking-wide`}>
               {verse}
             </p>
           </div>
@@ -317,10 +317,10 @@ const BackgroundDecor: React.FC = () => {
 };
 
 const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-16 sm:top-20'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
+  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[72px] sm:top-[92px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
     <DashboardBibleVerseTicker
       compact={compact}
-      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.9] sm:scale-[1.05]'} transition-transform duration-300 origin-top`}
+      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.95] sm:scale-[1.08]'} transition-transform duration-300 origin-top`}
     />
   </div>
 );
