@@ -329,7 +329,7 @@ const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false 
 const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean }> = ({
   children,
   header,
-  contentTopClass = 'pt-24 sm:pt-28',
+  contentTopClass = 'pt-36 sm:pt-28',
   tickerCompact = false
 }) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
