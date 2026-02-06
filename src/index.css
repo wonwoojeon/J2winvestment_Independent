@@ -51,6 +51,16 @@
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* top layout tokens */
+    --safe-top: env(safe-area-inset-top, 0px);
+    --app-header-h: 64px;
+    --verse-top-expanded-with-header: calc(var(--safe-top) + 82px);
+    --verse-top-compact-with-header: calc(var(--safe-top) + 82px);
+    --verse-top-expanded: calc(var(--safe-top) + 16px);
+    --verse-top-compact: calc(var(--safe-top) + 16px);
+    --shell-top-with-header: calc(var(--safe-top) + 134px);
+    --shell-top-without-header: calc(var(--safe-top) + 102px);
   }
 
   .dark {
@@ -89,6 +99,17 @@
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@media (min-width: 640px) {
+  :root {
+    --verse-top-expanded-with-header: calc(var(--safe-top) + 86px);
+    --verse-top-compact-with-header: calc(var(--safe-top) + 86px);
+    --verse-top-expanded: calc(var(--safe-top) + 24px);
+    --verse-top-compact: calc(var(--safe-top) + 24px);
+    --shell-top-with-header: calc(var(--safe-top) + 142px);
+    --shell-top-without-header: calc(var(--safe-top) + 108px);
   }
 }
 

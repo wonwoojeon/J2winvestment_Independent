@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Trash2, Brain } from 'lucide-react';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Trash2, Brain, Minus, Plus, Type } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
 import { getImportantMemoTag, getMemoText } from '@/utils/memo';
@@ -29,6 +29,26 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const hasComments = aiComments.length > 0;
+  const [fontScale, setFontScale] = useState<'sm' | 'md' | 'lg'>(() => {
+    if (typeof window === 'undefined') return 'md';
+    const saved = window.localStorage.getItem('journal_detail_font_scale');
+    return saved === 'sm' || saved === 'lg' ? saved : 'md';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('journal_detail_font_scale', fontScale);
+  }, [fontScale]);
+
+  const labelTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
+  const bodyTextClass = fontScale === 'sm' ? 'text-sm' : fontScale === 'md' ? 'text-base' : 'text-lg';
+  const subTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
+  const scaleOrder: Array<'sm' | 'md' | 'lg'> = ['sm', 'md', 'lg'];
+  const adjustFontScale = (direction: 'down' | 'up') => {
+    const idx = scaleOrder.indexOf(fontScale);
+    const nextIndex = direction === 'up' ? Math.min(scaleOrder.length - 1, idx + 1) : Math.max(0, idx - 1);
+    setFontScale(scaleOrder[nextIndex]);
+  };
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
@@ -284,22 +304,46 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
     <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/60 via-slate-950/50 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
       {/* 🔥 헤더 - 작성자만 수정/삭제 버튼 표시 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold break-keep">{journal.date} 투자일지</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold break-keep">{journal.date} 투자일지</h1>
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1">
+            <Type className="h-4 w-4 text-slate-300" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+              onClick={() => adjustFontScale('down')}
+            >
+              <Minus className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-slate-300 px-1">{fontScale.toUpperCase()}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+              onClick={() => adjustFontScale('up')}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={onBack}
-            className="border-white/10 text-slate-200 bg-slate-900/70 hover:bg-slate-800 w-fit"
+            className="border border-white/10 text-slate-100 bg-slate-900/80 hover:bg-slate-800 hover:text-white w-fit"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             목록으로
           </Button>
           <Button 
             onClick={handleDelete} 
-            variant="outline"
+            variant="ghost"
             disabled={!isOwner}
-            className={`border-white/10 text-slate-200 bg-slate-900/70 hover:bg-rose-500/20 hover:text-rose-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`border border-white/10 text-slate-100 bg-slate-900/80 hover:bg-rose-500/20 hover:text-rose-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
@@ -319,7 +363,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               <FileText className="h-4 w-4" />
               <span className="font-medium">다른 사용자의 일지</span>
             </div>
-            <p className="text-sm text-yellow-300">
+            <p className={`${labelTextClass} text-yellow-300`}>
               이 일지는 다른 사용자가 작성한 일지입니다. 읽기 전용으로만 볼 수 있으며, 수정이나 삭제는 불가능합니다.
             </p>
           </CardContent>
@@ -341,26 +385,26 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                <div className="text-sm text-gray-400">총 자산</div>
-                <div className="text-2xl font-bold text-blue-400">
-                  {formatCurrency(journal.totalAssets || totalAssets)}
-                </div>
+              <div className={`${labelTextClass} text-gray-400`}>총 자산</div>
+              <div className={`${bodyTextClass} font-bold text-blue-400`}>
+                {formatCurrency(journal.totalAssets || totalAssets)}
               </div>
-              <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                <div className="text-sm text-gray-400">해외주식</div>
-                <div className="text-lg font-semibold text-white">
-                  {formatCurrency(foreignStocksTotalKRW)}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {hideAssetAmounts ? '비공개' : `$${formatNumber(foreignStocksTotal)}`}
-                </div>
+            </div>
+            <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
+              <div className={`${labelTextClass} text-gray-400`}>해외주식</div>
+              <div className={`${bodyTextClass} font-semibold text-white`}>
+                {formatCurrency(foreignStocksTotalKRW)}
               </div>
-              <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                <div className="text-sm text-gray-400">국내주식</div>
-                <div className="text-lg font-semibold text-white">
-                  {formatCurrency(domesticStocksTotal)}
-                </div>
+              <div className={`${subTextClass} text-gray-500`}>
+                {hideAssetAmounts ? '비공개' : `$${formatNumber(foreignStocksTotal)}`}
               </div>
+            </div>
+            <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
+              <div className={`${labelTextClass} text-gray-400`}>국내주식</div>
+              <div className={`${bodyTextClass} font-semibold text-white`}>
+                {formatCurrency(domesticStocksTotal)}
+              </div>
+            </div>
             </div>
 
             {/* 자산 상세 - 토스 스타일: 버튼 hover 효과 */}
@@ -376,7 +420,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               
               {expandedSections.assetDetails && (
                 hideAssetAmounts ? (
-                  <div className="mt-4 text-sm text-gray-400">
+                  <div className={`mt-4 ${subTextClass} text-gray-400`}>
                     자산 상세 정보는 비공개로 설정되어 있습니다.
                   </div>
                 ) : (
@@ -392,7 +436,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                           <div key={stock.id || index} className="flex justify-between items-center p-3 bg-gray-700 rounded-md shadow-sm">
                             <div>
                               <div className="font-medium text-white">{stock.symbol || '미지정'}</div>
-                              <div className="text-sm text-gray-400">
+                              <div className={`${labelTextClass} text-gray-400`}>
                                 {formatNumber(stock.quantity || 0)}주 × ${formatNumber(stock.price || 0)}
                               </div>
                             </div>
@@ -400,7 +444,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                               <div className="font-semibold text-white">
                                 {formatCurrency((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}
                               </div>
-                              <div className="text-sm text-gray-500">
+                              <div className={`${subTextClass} text-gray-500`}>
                                 ${formatNumber((stock.price || 0) * (stock.quantity || 0))}
                               </div>
                             </div>
@@ -421,7 +465,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                           <div key={stock.id || index} className="flex justify-between items-center p-3 bg-gray-700 rounded-md shadow-sm">
                             <div>
                               <div className="font-medium text-white">{stock.symbol || '미지정'}</div>
-                              <div className="text-sm text-gray-400">
+                              <div className={`${labelTextClass} text-gray-400`}>
                                 {formatNumber(stock.quantity || 0)}주 × {formatNumber(stock.price || 0)}원
                               </div>
                             </div>
@@ -453,7 +497,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                             <div className="font-semibold text-white">
                               {formatCurrency(cashUsd * effectiveRate)}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className={`${subTextClass} text-gray-500`}>
                               ${formatNumber(cashUsd)}
                             </div>
                           </div>
@@ -485,18 +529,18 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                  <div className="text-sm text-gray-400 mb-2">Fear & Greed Index</div>
+                  <div className={`${labelTextClass} text-gray-400 mb-2`}>Fear & Greed Index</div>
                   <div className="text-3xl font-bold text-purple-400 mb-1">
                     {safeJournal.psychologyCheck.fearGreedIndex || 50}
                   </div>
-                  <div className={`text-sm font-medium ${getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).color}`}>
+                  <div className={`${labelTextClass} font-medium ${getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).color}`}>
                     {getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).text}
                   </div>
                 </div>
 
                 {coreIndicators.map((indicator) => (
                   <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                    <div className="text-sm text-gray-400 mb-2">{indicator.label}</div>
+                    <div className={`${labelTextClass} text-gray-400 mb-2`}>{indicator.label}</div>
                     <div className="text-lg font-semibold text-white">
                       {indicator.value || '-'}
                     </div>
@@ -520,7 +564,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                   {extraIndicators.map((indicator) => (
                     <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                      <div className="text-sm text-gray-400 mb-2">{indicator.label}</div>
+                      <div className={`${labelTextClass} text-gray-400 mb-2`}>{indicator.label}</div>
                       <div className="text-lg font-semibold text-white">
                         {indicator.value || '-'}
                       </div>
@@ -547,7 +591,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </CardHeader>
           {expandedSections.trades && (
             <CardContent className="p-4">
-              <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+              <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                 {journal.trades}
               </div>
             </CardContent>
@@ -579,13 +623,13 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bullMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
+                        <div key={item.id || index} className={`flex items-center gap-2 ${labelTextClass} text-slate-200 dark:text-slate-100`}>
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 text-sm text-gray-500">
+                    <div className={`mt-4 ${subTextClass} text-gray-500`}>
                       체크된 항목: {safeJournal.bullMarketChecklist.filter(item => item.checked).length}개 / 전체: {safeJournal.bullMarketChecklist.length}개
                     </div>
                   </div>
@@ -600,13 +644,13 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bearMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className="flex items-center gap-2 text-sm text-slate-200 dark:text-slate-100">
+                        <div key={item.id || index} className={`flex items-center gap-2 ${labelTextClass} text-slate-200 dark:text-slate-100`}>
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 text-sm text-gray-500">
+                    <div className={`mt-4 ${subTextClass} text-gray-500`}>
                       체크된 항목: {safeJournal.bearMarketChecklist.filter(item => item.checked).length}개 / 전체: {safeJournal.bearMarketChecklist.length}개
                     </div>
                   </div>
@@ -635,7 +679,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 {journal.marketIssues && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">시장 이슈</h3>
-                    <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                    <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                       {journal.marketIssues}
                     </div>
                   </div>
@@ -644,7 +688,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 {memoText && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">투자 메모</h3>
-                    <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                    <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                       {importantTag && (
                         <div className="text-amber-300 font-semibold mb-2">#{importantTag}</div>
                       )}
@@ -682,7 +726,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.planText && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">계획</h3>
-                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                     {journal.planText}
                   </div>
                 </div>
@@ -690,7 +734,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.executionText && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">실행</h3>
-                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                     {journal.executionText}
                   </div>
                 </div>
@@ -698,7 +742,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.deviationReason && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">이탈 사유</h3>
-                  <div className="whitespace-pre-wrap text-sm bg-gray-700 p-4 rounded-md text-gray-300">
+                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
                     {journal.deviationReason}
                   </div>
                 </div>
@@ -721,17 +765,28 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             </button>
             {hasComments && !aiOpen && (
               <Badge variant="outline" className="border-emerald-400/40 text-emerald-300 bg-emerald-500/10 w-fit">
-                생성됨
+                생성됨 {aiComments.length}개
               </Badge>
             )}
           </div>
-          <p className="text-sm text-slate-200/70">최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
+          <p className={`${labelTextClass} text-slate-200/70`}>최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
         </CardHeader>
         {aiOpen && (
           <CardContent className="space-y-3">
-            {aiError && <p className="text-sm text-rose-300">{aiError}</p>}
+            {aiError && <p className={`${labelTextClass} text-rose-300`}>{aiError}</p>}
             {aiComments.length === 0 && (
-              <p className="text-sm text-slate-200/60">아직 생성된 댓글이 없습니다.</p>
+              <div className="flex justify-end pb-1">
+                <Button
+                  onClick={handleGenerateComments}
+                  disabled={!isOwner || aiLoading}
+                  className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
+                >
+                  {aiLoading ? '생성 중...' : '댓글 생성'}
+                </Button>
+              </div>
+            )}
+            {aiComments.length === 0 && (
+              <p className={`${labelTextClass} text-slate-200/60`}>아직 생성된 댓글이 없습니다.</p>
             )}
             {aiComments.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -747,22 +802,26 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                       >
                         {comment.sentiment === 'pro' ? '찬성' : '반대'}
                       </Badge>
-                      <span className="text-sm text-slate-200/80">{comment.persona}</span>
+                      <span className={`${labelTextClass} text-slate-200/80`}>{comment.persona}</span>
                     </div>
-                    <p className="text-sm text-slate-100/90">{comment.content}</p>
+                    <p className={`${bodyTextClass} text-slate-100/90`}>{comment.content}</p>
                   </div>
                 ))}
               </div>
             )}
-            <div className="flex justify-end pt-2">
-              <Button
-                onClick={handleGenerateComments}
-                disabled={!isOwner || aiLoading}
-                className="bg-blue-900/80 hover:bg-blue-800/80 text-white"
-              >
-                {aiLoading ? '생성 중...' : hasComments ? '댓글 다시 생성' : '댓글 생성'}
-              </Button>
-            </div>
+            {aiComments.length > 0 && (
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={handleGenerateComments}
+                  disabled={!isOwner || aiLoading}
+                  variant="ghost"
+                  size="sm"
+                  className="border border-white/10 text-slate-300 hover:text-white hover:bg-slate-800"
+                >
+                  {aiLoading ? '생성 중...' : '댓글 다시 생성'}
+                </Button>
+              </div>
+            )}
           </CardContent>
         )}
       </Card>

@@ -6,12 +6,12 @@ import { UserProfile } from '../components/UserProfile';
 import { PublicJournalSearch } from '../components/PublicJournalSearch';
 import { PublicJournalDetail } from '../components/PublicJournalDetail';
 import { UserAssetChart } from '../components/UserAssetChart';
-import { BibleVerseTicker } from '../components/BibleVerseTicker';
 import AssetChangeChart from '../components/AssetChangeChart';
 import { MemoList } from '../components/MemoList';
 import { RiskSnapshot } from '../components/RiskSnapshot';
 import { ScenarioTracker } from '../components/ScenarioTracker';
 import { DashboardTodoList } from '@/components/DashboardTodoList';
+import { AppTopStack } from '@/components/layout/AppTopStack';
 import { InvestmentJournal, PublicJournalSearchResult } from '../types/investment';
 import { getImportantMemoTag, getMemoText, hasImportantMemo, normalizeMemoEntries } from '@/utils/memo';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -241,7 +241,8 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
 
   return (
     <div
-      className={`relative overflow-hidden ${compact ? 'h-10 sm:h-12' : 'h-14 sm:h-16'} ${className}`}
+      data-testid="dashboard-verse-ticker"
+      className={`relative overflow-hidden ${compact ? 'h-12 sm:h-14' : 'h-16 sm:h-[72px]'} ${className}`}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
@@ -255,9 +256,9 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-4' : 'px-9'}`}>
+          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-5' : 'px-10'}`}>
             <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-lg'} opacity-80`}>✝</span>
-            <p className={`text-slate-200/90 ${compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-[15px]'} font-medium tracking-wide`}>
+            <p className={`text-slate-200/90 ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-[17px]'} font-medium tracking-wide`}>
               {verse}
             </p>
           </div>
@@ -317,31 +318,40 @@ const BackgroundDecor: React.FC = () => {
   );
 };
 
-const FloatingVerseTicker: React.FC<{ compact?: boolean; hidden?: boolean }> = ({ compact = false, hidden = false }) => (
-  <div
-    className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[72px] sm:top-[90px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300 ${hidden ? 'opacity-0 pointer-events-none -translate-y-3' : 'opacity-100'}`}
-  >
-    <DashboardBibleVerseTicker
-      compact={compact}
-      className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.95] sm:scale-[1.08]'} transition-transform duration-300 origin-top`}
-    />
-  </div>
-);
-
-const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean; tickerHidden?: boolean }> = ({
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; contentTopExtra?: number; tickerCompact?: boolean; hasHeader?: boolean; headerHidden?: boolean }> = ({
   children,
   header,
-  contentTopClass = 'pt-36 sm:pt-28',
+  contentTopClass,
+  contentTopExtra = 0,
   tickerCompact = false,
-  tickerHidden = false
-}) => (
-  <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
-    <BackgroundDecor />
-    {header}
-    <div className={`relative z-10 pb-20 ${contentTopClass}`}>{children}</div>
-    <FloatingVerseTicker compact={tickerCompact} hidden={tickerHidden} />
-  </div>
-);
+  hasHeader = false,
+  headerHidden = false
+}) => {
+  const defaultPaddingTop = hasHeader ? 'var(--shell-top-with-header)' : 'var(--shell-top-without-header)';
+  const paddingTop = `calc(${defaultPaddingTop} + ${contentTopExtra}px)`;
+  return (
+    <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
+      <BackgroundDecor />
+      <AppTopStack
+        header={header}
+        compact={tickerCompact}
+        headerHidden={headerHidden}
+        ticker={(
+          <DashboardBibleVerseTicker
+            compact={tickerCompact}
+            className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${tickerCompact ? '' : 'scale-[0.96] sm:scale-[1.03]'} transition-transform duration-300 origin-top`}
+          />
+        )}
+      />
+      <div
+        className={`relative z-10 pb-20 ${contentTopClass || ''}`}
+        style={contentTopClass ? undefined : { paddingTop }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const INVESTOR_QUOTES = [
   { name: '워렌 버핏', quote: '규칙 1: 돈을 잃지 말라. 규칙 2: 규칙 1을 잊지 말라.' },
@@ -469,8 +479,7 @@ function Index() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [reflectionText, setReflectionText] = useState<string>('');
   const [reflectionLoading, setReflectionLoading] = useState(false);
-  const [tickerCompact, setTickerCompact] = useState(true);
-  const [tickerHidden, setTickerHidden] = useState(false);
+  const [tickerCompact, setTickerCompact] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
   const lastScrollYRef = useRef(0);
 
@@ -503,20 +512,15 @@ function Index() {
     const handleScroll = () => {
       const current = window.scrollY;
       setTickerCompact(current > 60);
-      setTickerHidden(current > 40);
-
-      const isMobile = window.innerWidth < 640;
-      if (!isMobile) {
-        setHeaderHidden(false);
-      } else if (mobileMenuOpen) {
+      if (mobileMenuOpen) {
         setHeaderHidden(false);
       } else {
         const delta = current - lastScrollYRef.current;
         if (current < 8) {
           setHeaderHidden(false);
-        } else if (delta > 6) {
+        } else if (delta > 8) {
           setHeaderHidden(true);
-        } else if (delta < -6) {
+        } else if (delta < -8) {
           setHeaderHidden(false);
         }
       }
@@ -1122,7 +1126,7 @@ function Index() {
 
   if (loading) {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center glass-panel px-8 py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-300 mx-auto mb-4" />
@@ -1135,7 +1139,7 @@ function Index() {
 
   if (currentView === 'publicSearch') {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={48}>
         <div className="min-h-screen">
           <PublicJournalSearch
             onJournalSelect={handlePublicJournalView}
@@ -1149,7 +1153,7 @@ function Index() {
 
   if (currentView === 'publicDetail' && publicJournalResult) {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={44}>
         <div className="min-h-screen">
           <PublicJournalDetail
             result={publicJournalResult}
@@ -1163,7 +1167,7 @@ function Index() {
 
   if (currentView === 'userChart' && selectedUserProfile) {
     return (
-      <PageShell contentTopClass="pt-44 sm:pt-48" tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={44}>
         <div className="container mx-auto p-2 sm:p-4">
           <UserAssetChart
             userProfile={selectedUserProfile}
@@ -1179,7 +1183,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <PageShell contentTopClass="pt-36 sm:pt-40" tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={40}>
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
@@ -1198,7 +1202,7 @@ function Index() {
 
   if (!user) {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact}>
         <div className="min-h-screen flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md mx-auto text-center space-y-8 glass-panel px-8 py-10">
             <div className="space-y-4">
@@ -1247,7 +1251,7 @@ function Index() {
 
   if (currentView === 'profile') {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact}>
         <UserProfile onClose={() => setCurrentView('list')} />
       </PageShell>
     );
@@ -1255,7 +1259,7 @@ function Index() {
 
   if (currentView === 'form') {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact}>
         <JournalForm
           key={selectedJournal ? selectedJournal.id : 'new'} // 🔥 키를 추가하여 컴포넌트 재생성 강제
           onSubmit={handleJournalSubmit}
@@ -1271,7 +1275,7 @@ function Index() {
 
   if (currentView === 'memoList') {
     return (
-      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
+      <PageShell tickerCompact={tickerCompact}>
         <MemoList
           journals={journals}
           onBack={() => setCurrentView('list')}
@@ -1424,10 +1428,11 @@ function Index() {
       </header>
       )}
       tickerCompact={tickerCompact}
-      tickerHidden={tickerHidden}
+      hasHeader
+      headerHidden={headerHidden}
     >
       
-      <main className="container mx-auto px-3 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10 max-w-7xl -mt-1 sm:-mt-3">
+      <main className="container mx-auto px-3 sm:px-6 py-6 sm:py-8 space-y-8 sm:space-y-10 max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:items-start">
           <DashboardTodoList userId={user?.id} />
           <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">

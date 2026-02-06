@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp, MoreVertical } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp, MoreVertical, Minus, Type } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { InvestmentScenario } from '@/types/investment';
 import {
@@ -52,6 +52,26 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
   const [form, setForm] = useState(emptyForm);
   const [expandedScenarios, setExpandedScenarios] = useState<Record<string, boolean>>({});
   const isReadOnly = Boolean(readOnly);
+  const [fontScale, setFontScale] = useState<'sm' | 'md' | 'lg'>(() => {
+    if (typeof window === 'undefined') return 'md';
+    const saved = window.localStorage.getItem('scenario_tracker_font_scale');
+    return saved === 'sm' || saved === 'md' || saved === 'lg' ? saved : 'md';
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem('scenario_tracker_font_scale', fontScale);
+  }, [fontScale]);
+
+  const labelTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
+  const bodyTextClass = fontScale === 'sm' ? 'text-sm' : fontScale === 'md' ? 'text-base' : 'text-lg';
+  const subTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
+
+  const adjustFontScale = (delta: -1 | 1) => {
+    const scaleOrder: Array<'sm' | 'md' | 'lg'> = ['sm', 'md', 'lg'];
+    const idx = scaleOrder.indexOf(fontScale);
+    const next = Math.min(scaleOrder.length - 1, Math.max(0, idx + delta));
+    setFontScale(scaleOrder[next]);
+  };
 
   const loadScenarios = async () => {
     try {
@@ -190,6 +210,30 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
             시나리오 트래커
           </CardTitle>
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-1 py-1">
+              <Type className="h-3.5 w-3.5 text-slate-300" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={() => adjustFontScale(-1)}
+                disabled={fontScale === 'sm'}
+                aria-label="글자 크기 줄이기"
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </Button>
+              <span className="px-1 text-xs text-slate-300">{fontScale.toUpperCase()}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
+                onClick={() => adjustFontScale(1)}
+                disabled={fontScale === 'lg'}
+                aria-label="글자 크기 키우기"
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -220,50 +264,50 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
       {showForm && !isReadOnly && (
         <CardContent className="pt-4 space-y-4 border-b border-slate-800/50">
           <div className="space-y-2">
-            <Label className="text-slate-400">제목</Label>
+            <Label className={`text-slate-400 ${labelTextClass}`}>제목</Label>
             <Input
               value={form.title}
               onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-              className="bg-slate-800 border-slate-700 text-white"
+              className={`bg-slate-800 border-slate-700 text-white ${bodyTextClass}`}
               placeholder="핵심 시나리오 한 줄"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-slate-400">가정</Label>
+              <Label className={`text-slate-400 ${labelTextClass}`}>가정</Label>
               <Textarea
                 value={form.hypothesis}
                 onChange={(e) => setForm(prev => ({ ...prev, hypothesis: e.target.value }))}
-                className="bg-slate-800 border-slate-700 text-white min-h-[120px]"
+                className={`bg-slate-800 border-slate-700 text-white min-h-[120px] ${bodyTextClass}`}
                 placeholder="핵심 가정"
               />
             </div>
             <div className="space-y-2">
-              <Label className="text-slate-400">트리거</Label>
+              <Label className={`text-slate-400 ${labelTextClass}`}>트리거</Label>
               <Textarea
                 value={form.trigger}
                 onChange={(e) => setForm(prev => ({ ...prev, trigger: e.target.value }))}
-                className="bg-slate-800 border-slate-700 text-white min-h-[120px]"
+                className={`bg-slate-800 border-slate-700 text-white min-h-[120px] ${bodyTextClass}`}
                 placeholder="확인해야 할 신호"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-slate-400">무효화 조건</Label>
+            <Label className={`text-slate-400 ${labelTextClass}`}>무효화 조건</Label>
             <Textarea
               value={form.invalidation}
               onChange={(e) => setForm(prev => ({ ...prev, invalidation: e.target.value }))}
-              className="bg-slate-800 border-slate-700 text-white min-h-[100px]"
+              className={`bg-slate-800 border-slate-700 text-white min-h-[100px] ${bodyTextClass}`}
               placeholder="시나리오가 깨지는 조건"
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-slate-400">상태</Label>
+            <Label className={`text-slate-400 ${labelTextClass}`}>상태</Label>
             <Select
               value={form.status}
               onValueChange={(value) => setForm(prev => ({ ...prev, status: value as ScenarioStatus }))}
             >
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={`bg-slate-800 border-slate-700 text-white ${bodyTextClass}`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -293,12 +337,12 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
 
       <CardContent className="pt-4 space-y-3">
         {loading ? (
-          <div className="text-slate-500 text-sm flex items-center gap-2">
+          <div className={`text-slate-500 ${labelTextClass} flex items-center gap-2`}>
             <RefreshCw className="h-4 w-4 animate-spin" />
             시나리오를 불러오는 중...
           </div>
         ) : scenarios.length === 0 ? (
-          <div className="text-slate-500 text-sm">
+          <div className={`text-slate-500 ${labelTextClass}`}>
             아직 등록된 시나리오가 없습니다.
           </div>
         ) : (
@@ -309,7 +353,7 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 w-full">
                     <div
-                      className={`text-slate-100 font-semibold ${
+                      className={`text-slate-100 font-semibold ${bodyTextClass} ${
                         isExpanded ? 'whitespace-normal break-words' : 'truncate'
                       }`}
                     >
@@ -317,7 +361,7 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-nowrap">
-                    <Badge variant="outline" className={`text-xs shrink-0 ${statusStyles[scenario.status]}`}>
+                    <Badge variant="outline" className={`${subTextClass} shrink-0 ${statusStyles[scenario.status]}`}>
                       {statusLabels[scenario.status]}
                     </Badge>
                     <Button
@@ -376,17 +420,17 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                 {isExpanded && (
                   <div className="space-y-2">
                     {scenario.hypothesis && (
-                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
                         가정: {scenario.hypothesis}
                       </div>
                     )}
                     {scenario.trigger && (
-                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
                         트리거: {scenario.trigger}
                       </div>
                     )}
                     {scenario.invalidation && (
-                      <div className="text-xs text-slate-400 whitespace-pre-wrap">
+                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
                         무효화: {scenario.invalidation}
                       </div>
                     )}
