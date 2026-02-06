@@ -158,14 +158,7 @@ const writeCachedText = (key: string | null, content: string): void => {
 
 type AiCacheType = 'summary' | 'reflection';
 
-// 🙏 성경구절 티커 (대시보드용)
-const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolean }> = ({
-  className = '',
-  compact = false
-}) => {
-  const [shuffledVerses, setShuffledVerses] = useState<string[]>([]);
-
-  const BIBLE_VERSES = [
+const BIBLE_VERSES = [
     "그러므로 이렇게 기도하라 - 마태복음 6:9-13",
     "여호와는 나의 목자시니 내게 부족함이 없으리로다 - 시편 23:1",
     "복 있는 사람은 악인들의 꾀를 따르지 아니하며 - 시편 1:1",
@@ -231,18 +224,36 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
     "부자는 가난한 자를 주관하고 빚진 자는 채주의 종이 되느니라 - 잠언 22:7",
     "무릇 이익을 탐하는 자의 길은 다 이러하여 자기의 생명을 잃게 하느니라 - 잠언 1:19",
     "사랑하는 자여 네 영혼이 잘됨 같이 네가 범사에 잘되고 강건하기를 - 요한삼서 1:2"
-  ];
+];
+
+// 🙏 성경구절 티커 (대시보드용)
+const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolean }> = ({
+  className = '',
+  compact = false
+}) => {
+  const [shuffledVerses, setShuffledVerses] = useState<string[]>(BIBLE_VERSES);
 
   useEffect(() => {
-    setShuffledVerses(BIBLE_VERSES);
     const shuffled = [...BIBLE_VERSES].sort(() => Math.random() - 0.5);
     setShuffledVerses(shuffled);
   }, []);
 
+  const tickerHeight = compact ? '3rem' : '4.25rem';
+  const textSize = compact
+    ? 'clamp(0.82rem, 2.6vw, 0.98rem)'
+    : 'clamp(0.98rem, 3vw, 1.2rem)';
+  const crossSize = compact
+    ? 'clamp(0.95rem, 2.8vw, 1.05rem)'
+    : 'clamp(1.1rem, 3.2vw, 1.35rem)';
+
   return (
     <div
       data-testid="dashboard-verse-ticker"
-      className={`relative overflow-hidden ${compact ? 'h-12 sm:h-14' : 'h-16 sm:h-[72px]'} ${className}`}
+      className={`relative overflow-hidden transition-all duration-500 ease-out will-change-[height,transform,filter] ${className}`}
+      style={{
+        height: tickerHeight,
+        filter: compact ? 'drop-shadow(0 0 8px rgba(56,189,248,0.2))' : 'drop-shadow(0 0 16px rgba(56,189,248,0.35))'
+      }}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-slate-950/90 to-transparent z-10" />
@@ -257,8 +268,16 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
           <div key={index} className={`flex items-center gap-4 ${compact ? 'px-5' : 'px-10'}`}>
-            <span className={`text-cyan-300 ${compact ? 'text-base' : 'text-lg'} opacity-80`}>✝</span>
-            <p className={`text-slate-200/90 ${compact ? 'text-sm sm:text-base' : 'text-base sm:text-[17px]'} font-medium tracking-wide`}>
+            <span
+              className="text-cyan-300 opacity-80 transition-all duration-500 ease-out"
+              style={{ fontSize: crossSize }}
+            >
+              ✝
+            </span>
+            <p
+              className="text-slate-200/90 font-medium tracking-wide transition-all duration-500 ease-out"
+              style={{ fontSize: textSize }}
+            >
               {verse}
             </p>
           </div>
@@ -341,7 +360,9 @@ const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode;
         ticker={(
           <DashboardBibleVerseTicker
             compact={tickerCompact}
-            className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${tickerCompact ? '' : 'scale-[0.96] sm:scale-[1.03]'} transition-transform duration-300 origin-top`}
+            className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${
+              tickerCompact ? 'scale-[0.96]' : 'scale-[1.03]'
+            } transition-all duration-500 ease-out origin-top will-change-transform`}
           />
         )}
       />
