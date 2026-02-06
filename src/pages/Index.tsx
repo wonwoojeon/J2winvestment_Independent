@@ -239,13 +239,10 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   }, []);
 
   const tickerHeight = compact ? '3rem' : '4.25rem';
-  const tickerGap = compact ? '1.5rem' : '2.5rem';
-  const textSize = compact
-    ? 'clamp(0.82rem, 2.6vw, 0.98rem)'
-    : 'clamp(0.98rem, 3vw, 1.2rem)';
-  const crossSize = compact
-    ? 'clamp(0.95rem, 2.8vw, 1.05rem)'
-    : 'clamp(1.1rem, 3.2vw, 1.35rem)';
+  const tickerScale = compact ? 0.86 : 1;
+  const tickerGap = '2rem';
+  const textSize = 'clamp(0.98rem, 3vw, 1.2rem)';
+  const crossSize = 'clamp(1.1rem, 3.2vw, 1.35rem)';
   const tickerShadow = compact
     ? '0 0 18px rgba(56,189,248,0.18)'
     : '0 0 32px rgba(56,189,248,0.28)';
@@ -253,10 +250,12 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   return (
     <div
       data-testid="dashboard-verse-ticker"
-      className={`relative overflow-hidden transition-all duration-500 ease-out will-change-[height,transform,filter] ${className}`}
+      className={`relative overflow-hidden transition-all duration-500 ease-out will-change-[height,transform] ${className}`}
       style={{
         height: tickerHeight,
-        boxShadow: tickerShadow
+        boxShadow: tickerShadow,
+        transform: `translateZ(0) scale(${tickerScale})`,
+        transformOrigin: 'center top'
       }}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
