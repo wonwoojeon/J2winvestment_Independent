@@ -317,8 +317,10 @@ const BackgroundDecor: React.FC = () => {
   );
 };
 
-const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false }) => (
-  <div className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[60px] sm:top-[76px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300`}>
+const FloatingVerseTicker: React.FC<{ compact?: boolean; hidden?: boolean }> = ({ compact = false, hidden = false }) => (
+  <div
+    className={`fixed ${compact ? 'top-10 sm:top-12' : 'top-[72px] sm:top-[90px]'} left-1/2 z-[60] w-[min(1200px,94vw)] -translate-x-1/2 px-2 transition-all duration-300 ${hidden ? 'opacity-0 pointer-events-none -translate-y-3' : 'opacity-100'}`}
+  >
     <DashboardBibleVerseTicker
       compact={compact}
       className={`glass-panel rounded-full overflow-hidden bg-slate-950/60 ${compact ? '' : 'scale-[0.95] sm:scale-[1.08]'} transition-transform duration-300 origin-top`}
@@ -326,17 +328,18 @@ const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false 
   </div>
 );
 
-const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean }> = ({
+const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean; tickerHidden?: boolean }> = ({
   children,
   header,
   contentTopClass = 'pt-36 sm:pt-28',
-  tickerCompact = false
+  tickerCompact = false,
+  tickerHidden = false
 }) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
     <BackgroundDecor />
     {header}
     <div className={`relative z-10 pb-20 ${contentTopClass}`}>{children}</div>
-    <FloatingVerseTicker compact={tickerCompact} />
+    <FloatingVerseTicker compact={tickerCompact} hidden={tickerHidden} />
   </div>
 );
 
@@ -350,7 +353,9 @@ const INVESTOR_QUOTES = [
   { name: '하워드 막스', quote: '리스크를 이해하지 못하면 수익도 이해할 수 없다.' },
   { name: '폴 튜더 존스', quote: '손실은 빠르게, 이익은 길게.' },
   { name: '제시 리버모어', quote: '돈은 기다림으로 만들어진다.' },
-  { name: '조지 소로스', quote: '틀렸음을 인정하고 수정하는 것이 핵심이다.' }
+  { name: '조지 소로스', quote: '틀렸음을 인정하고 수정하는 것이 핵심이다.' },
+  { name: '스탠 드러켄밀러', quote: '큰 돈은 기다리고 오래 보유하는 데서 나온다.' },
+  { name: '고레카와 긴조', quote: '시장은 비관 속에서 태어나고 회의 속에서 자라며 낙관 속에서 성숙하고 도취 속에서 죽는다.' }
 ];
 
 type StanceInfo = {
@@ -465,6 +470,7 @@ function Index() {
   const [reflectionText, setReflectionText] = useState<string>('');
   const [reflectionLoading, setReflectionLoading] = useState(false);
   const [tickerCompact, setTickerCompact] = useState(true);
+  const [tickerHidden, setTickerHidden] = useState(false);
   const [headerHidden, setHeaderHidden] = useState(false);
   const lastScrollYRef = useRef(0);
 
@@ -496,7 +502,8 @@ function Index() {
   useEffect(() => {
     const handleScroll = () => {
       const current = window.scrollY;
-      setTickerCompact(current > 80);
+      setTickerCompact(current > 60);
+      setTickerHidden(current > 40);
 
       const isMobile = window.innerWidth < 640;
       if (!isMobile) {
@@ -1115,7 +1122,7 @@ function Index() {
 
   if (loading) {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center glass-panel px-8 py-8">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-300 mx-auto mb-4" />
@@ -1128,7 +1135,7 @@ function Index() {
 
   if (currentView === 'publicSearch') {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <div className="min-h-screen">
           <PublicJournalSearch
             onJournalSelect={handlePublicJournalView}
@@ -1142,7 +1149,7 @@ function Index() {
 
   if (currentView === 'publicDetail' && publicJournalResult) {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <div className="min-h-screen">
           <PublicJournalDetail
             result={publicJournalResult}
@@ -1156,7 +1163,7 @@ function Index() {
 
   if (currentView === 'userChart' && selectedUserProfile) {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell contentTopClass="pt-44 sm:pt-48" tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <div className="container mx-auto p-2 sm:p-4">
           <UserAssetChart
             userProfile={selectedUserProfile}
@@ -1172,7 +1179,7 @@ function Index() {
     const isPublicDetail = Boolean(selectedUserProfile);
     const backTarget = isPublicDetail ? 'userChart' : user ? 'list' : 'publicSearch';
     return (
-      <PageShell contentTopClass="pt-36 sm:pt-40" tickerCompact={tickerCompact}>
+      <PageShell contentTopClass="pt-36 sm:pt-40" tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
@@ -1191,7 +1198,7 @@ function Index() {
 
   if (!user) {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <div className="min-h-screen flex items-center justify-center px-4 py-12">
           <div className="w-full max-w-md mx-auto text-center space-y-8 glass-panel px-8 py-10">
             <div className="space-y-4">
@@ -1240,7 +1247,7 @@ function Index() {
 
   if (currentView === 'profile') {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <UserProfile onClose={() => setCurrentView('list')} />
       </PageShell>
     );
@@ -1248,7 +1255,7 @@ function Index() {
 
   if (currentView === 'form') {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <JournalForm
           key={selectedJournal ? selectedJournal.id : 'new'} // 🔥 키를 추가하여 컴포넌트 재생성 강제
           onSubmit={handleJournalSubmit}
@@ -1264,7 +1271,7 @@ function Index() {
 
   if (currentView === 'memoList') {
     return (
-      <PageShell tickerCompact={tickerCompact}>
+      <PageShell tickerCompact={tickerCompact} tickerHidden={tickerHidden}>
         <MemoList
           journals={journals}
           onBack={() => setCurrentView('list')}
@@ -1275,7 +1282,7 @@ function Index() {
   }
 
   return (
-    <PageShell
+      <PageShell
       header={(
       <header className={`glass-header sticky top-0 z-50 transition-transform duration-300 ${headerHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <div className="container mx-auto px-4 h-16 flex justify-between items-center">
@@ -1417,6 +1424,7 @@ function Index() {
       </header>
       )}
       tickerCompact={tickerCompact}
+      tickerHidden={tickerHidden}
     >
       
       <main className="container mx-auto px-3 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10 max-w-7xl -mt-1 sm:-mt-3">

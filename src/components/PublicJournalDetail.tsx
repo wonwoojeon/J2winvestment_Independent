@@ -119,7 +119,12 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
       {/* 헤더 - 공개 일지임을 표시 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={onBack} className="border-gray-700 hover:bg-gray-800 text-gray-300 hover:text-white">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onBack}
+            className="border-white/10 text-slate-200 bg-slate-900/70 hover:bg-slate-800"
+          >
             <ArrowLeft className="h-4 w-4 mr-2" />
             뒤로가기
           </Button>
