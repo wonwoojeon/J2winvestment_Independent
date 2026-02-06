@@ -120,10 +120,10 @@ export const PublicJournalDetail: React.FC<PublicJournalDetailProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={onBack}
-            className="border-white/10 text-slate-200 bg-slate-900/70 hover:bg-slate-800"
+            className="border border-white/10 text-slate-100 bg-slate-900/80 hover:bg-slate-800 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             뒤로가기

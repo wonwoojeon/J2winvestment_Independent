@@ -77,12 +77,15 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
 
   const fearGreedValue = journal.psychologyCheck?.fearGreedIndex ?? 50;
   const fearGreedLabel = getFearGreedLabel(fearGreedValue);
+  const dxyValue = String(journal.psychologyCheck?.dxyIndex || '').trim();
+  const us10yValue = String(journal.psychologyCheck?.us10yYield || '').trim();
+  const isMacroDataMissing = !dxyValue || !us10yValue;
 
   return (
     <Card className="bg-slate-900 border-slate-800 shadow-xl">
-      <CardHeader className="pb-3 border-b border-slate-800/50">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-slate-100 flex items-center gap-2">
+      <CardHeader className="border-b border-slate-800/50 px-5 py-4 space-y-0">
+        <div className="flex items-center justify-between gap-3 min-h-[44px]">
+          <CardTitle className="text-slate-100 flex items-center gap-2 leading-tight">
             <Layers className="h-5 w-5 text-blue-500" />
             리스크 스냅샷
           </CardTitle>
@@ -90,7 +93,7 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
             type="button"
             variant="ghost"
             size="sm"
-            className="text-slate-300 hover:text-white hover:bg-slate-800"
+            className="h-9 px-3 text-slate-300 hover:text-white hover:bg-slate-800"
             onClick={() => setIsExpanded((prev) => !prev)}
           >
             {isExpanded ? (
@@ -160,6 +163,27 @@ export const RiskSnapshot: React.FC<RiskSnapshotProps> = ({ journal, exchangeRat
               <div className="text-xs text-slate-500 mt-1">
                 최신 일지 기준
               </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-slate-800 bg-slate-950/35 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={dxyValue ? 'border-cyan-400/40 text-cyan-200 bg-cyan-500/10' : 'border-amber-400/40 text-amber-200 bg-amber-500/10'}
+              >
+                DXY {dxyValue || '미수신'}
+              </Badge>
+              <Badge
+                variant="outline"
+                className={us10yValue ? 'border-indigo-400/40 text-indigo-200 bg-indigo-500/10' : 'border-amber-400/40 text-amber-200 bg-amber-500/10'}
+              >
+                US10Y {us10yValue || '미수신'}
+              </Badge>
+              {isMacroDataMissing && (
+                <span className="text-xs text-amber-300/90">
+                  일부 거시지표가 비어 있습니다. `FRED_API_KEY` 또는 지표 API 응답을 확인하세요.
+                </span>
+              )}
             </div>
           </div>
           {extraContent && (

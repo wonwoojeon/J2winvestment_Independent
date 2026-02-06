@@ -54,6 +54,7 @@ pnpm i
 
 ```shell
 pnpm add some_new_dependency
+```
 
 **Start Preview**
 
@@ -65,4 +66,17 @@ pnpm run dev
 
 ```shell
 pnpm run build
+```
+
+**Visual Regression (Playwright)**
+
+```shell
+# local dev server 자동 실행
+npm run test:visual
+
+# 스냅샷 갱신
+npm run test:visual:update
+
+# 배포 URL 기준 실행
+PLAYWRIGHT_BASE_URL=https://j2winvestment.com npm run test:visual
 ```
