@@ -328,7 +328,7 @@ const FloatingVerseTicker: React.FC<{ compact?: boolean }> = ({ compact = false 
 const PageShell: React.FC<{ children: React.ReactNode; header?: React.ReactNode; contentTopClass?: string; tickerCompact?: boolean }> = ({
   children,
   header,
-  contentTopClass = 'pt-32 sm:pt-36',
+  contentTopClass = 'pt-24 sm:pt-28',
   tickerCompact = false
 }) => (
   <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
@@ -1418,7 +1418,7 @@ function Index() {
       tickerCompact={tickerCompact}
     >
       
-      <main className="container mx-auto px-3 sm:px-6 py-10 space-y-10 max-w-7xl">
+      <main className="container mx-auto px-3 sm:px-6 py-8 sm:py-10 space-y-8 sm:space-y-10 max-w-7xl -mt-1 sm:-mt-3">
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:items-start">
           <DashboardTodoList userId={user?.id} />
           <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">

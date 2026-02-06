@@ -281,7 +281,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   ];
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/70 via-slate-950/60 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
+    <div className="max-w-6xl mx-auto p-6 space-y-6 text-white min-h-screen rounded-2xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-slate-950/60 via-slate-950/50 to-slate-950/40 backdrop-blur-2xl shadow-2xl">
       {/* 🔥 헤더 - 작성자만 수정/삭제 버튼 표시 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -297,12 +297,12 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             onClick={handleDelete} 
             variant="outline"
             disabled={!isOwner}
-            className={`border-white/30 text-white bg-white/5 hover:bg-rose-500/20 hover:text-rose-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`border-white/10 text-slate-200 bg-slate-900/70 hover:bg-rose-500/20 hover:text-rose-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             삭제
           </Button>
-          <Button onClick={onEdit} disabled={!isOwner} className={`bg-white text-slate-900 hover:bg-slate-100 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
+          <Button onClick={onEdit} disabled={!isOwner} className={`bg-slate-900/80 text-slate-100 hover:bg-slate-800 ${!isOwner ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Edit className="h-4 w-4 mr-2" />
             수정
           </Button>
