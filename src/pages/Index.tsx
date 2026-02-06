@@ -486,6 +486,8 @@ const deriveStance = (journal: InvestmentJournal | null, exchangeRate: number): 
 };
 
 function Index() {
+  const TICKER_COMPACT_ON_SCROLL_Y = 72;
+  const TICKER_EXPAND_ON_SCROLL_Y = 28;
   const [user, setUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -534,8 +536,10 @@ function Index() {
   useEffect(() => {
     const handleScroll = () => {
       const current = window.scrollY;
-      setTickerCompact(current > 60);
-      if (mobileMenuOpen) {
+      // Hysteresis avoids compact/expand flicker around the threshold on mobile browsers.
+      setTickerCompact((prev) => (prev ? current > TICKER_EXPAND_ON_SCROLL_Y : current > TICKER_COMPACT_ON_SCROLL_Y));
+
+      if (currentView !== 'list' || mobileMenuOpen) {
         setHeaderHidden(false);
       } else {
         const delta = current - lastScrollYRef.current;
@@ -552,12 +556,17 @@ function Index() {
     };
     handleScroll();
     window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
     };
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, currentView]);
+
+  useEffect(() => {
+    if (currentView !== 'list') {
+      setMobileMenuOpen(false);
+      setHeaderHidden(false);
+    }
+  }, [currentView]);
 
   const loadUserProfile = async (userId: string) => {
     try {
