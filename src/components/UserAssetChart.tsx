@@ -103,6 +103,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('ko-KR');
   const formatCurrency = (value: number) => (hideAssetAmounts ? '비공개' : `${Math.floor(value).toLocaleString()}원`);
+  const shortUserId = userProfile?.user_id ? `${String(userProfile.user_id).slice(0, 8)}...` : 'N/A';
 
   const handlePointClick = async (date: string) => {
     if (!userProfile?.user_id) return;
@@ -131,33 +132,55 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
 
   return (
     <div className="min-h-screen text-white">
-      <div className="container mx-auto p-2 sm:p-4 max-w-6xl space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <Button
-            onClick={onBack}
-            variant="outline"
-            size="sm"
-            className="border-slate-700 text-slate-300 hover:bg-slate-800 w-fit"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            돌아가기
-          </Button>
-          <div className="flex items-center gap-2 text-sm text-slate-300">
-            <User className="h-4 w-4 text-blue-400" />
-            <span className="font-medium">{userProfile?.nickname || '공개 사용자'}</span>
+      <div className="container mx-auto max-w-6xl px-3 sm:px-4 space-y-4 sm:space-y-6">
+        <div className="glass-panel bg-slate-950/45 px-3 sm:px-4 py-3 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-2">
+              <Button
+                onClick={onBack}
+                variant="ghost"
+                size="sm"
+                className="h-10 rounded-xl border border-slate-700 bg-slate-900/90 text-slate-100 hover:bg-slate-800 hover:text-white w-fit px-3 shadow-sm"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                돌아가기
+              </Button>
+              <div className="flex items-center gap-2 text-sm text-slate-200">
+                <User className="h-4 w-4 text-cyan-300" />
+                <span className="font-semibold">{userProfile?.nickname || '공개 사용자'}</span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300/70">
+                공개 계정의 투두, 리스크 스냅샷, 최근 일지를 확인할 수 있습니다.
+              </p>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Badge variant="outline" className="border-cyan-300/40 text-cyan-200 bg-cyan-500/10">
+                @{userProfile?.nickname || 'public'}
+              </Badge>
+              <span className="text-[11px] sm:text-xs text-slate-400">ID {shortUserId}</span>
+            </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,340px)] gap-6 lg:items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,300px)] gap-4 sm:gap-6 lg:items-start">
           <DashboardTodoList userId={userProfile?.user_id} readOnly />
           <div className="glass-panel bg-slate-950/40 px-4 py-4 space-y-3">
             <div className="text-xs uppercase tracking-[0.3em] text-indigo-200/70">Public Profile</div>
             <div className="text-lg font-semibold text-slate-100">
               {userProfile?.nickname || '공개 사용자'}
             </div>
-            <p className="text-sm text-slate-200/70 leading-relaxed">
-              공개 계정의 투두와 최근 일지를 확인할 수 있습니다.
-            </p>
+            <div className="space-y-2 text-sm text-slate-300/80">
+              <div className="flex items-center justify-between">
+                <span>일지 수</span>
+                <span className="font-medium text-slate-100">{journals.length}개</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>최근 자산</span>
+                <span className="font-medium text-slate-100">
+                  {formatCurrency((latestJournal?.totalAssets || userProfile?.latest_assets || 0))}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -187,7 +210,7 @@ export const UserAssetChart: React.FC<UserAssetChartProps> = ({
           <div className="text-xs text-slate-500 text-center">상세 일지를 불러오는 중...</div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           <div className="flex items-center justify-between px-1">
             <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2 font-display">
               <Calendar className="h-5 w-5 text-cyan-300" />

@@ -1141,7 +1141,7 @@ function Index() {
 
   if (currentView === 'publicSearch') {
     return (
-      <PageShell tickerCompact={tickerCompact} contentTopExtra={48}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={24}>
         <div className="min-h-screen">
           <PublicJournalSearch
             onJournalSelect={handlePublicJournalView}
@@ -1155,7 +1155,7 @@ function Index() {
 
   if (currentView === 'publicDetail' && publicJournalResult) {
     return (
-      <PageShell tickerCompact={tickerCompact} contentTopExtra={44}>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={24}>
         <div className="min-h-screen">
           <PublicJournalDetail
             result={publicJournalResult}
@@ -1169,14 +1169,15 @@ function Index() {
 
   if (currentView === 'userChart' && selectedUserProfile) {
     return (
-      <PageShell tickerCompact={tickerCompact} contentTopExtra={44}>
-        <div className="container mx-auto p-2 sm:p-4">
-          <UserAssetChart
-            userProfile={selectedUserProfile}
-            onJournalClick={handleUserChartJournalClick}
-            onBack={() => setCurrentView('publicSearch')}
-          />
-        </div>
+      <PageShell tickerCompact={tickerCompact} contentTopExtra={20}>
+        <UserAssetChart
+          userProfile={selectedUserProfile}
+          onJournalClick={handleUserChartJournalClick}
+          onBack={() => {
+            setMobileMenuOpen(false);
+            setCurrentView('publicSearch');
+          }}
+        />
       </PageShell>
     );
   }

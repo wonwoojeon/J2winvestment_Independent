@@ -305,15 +305,15 @@ export const PublicJournalSearch: React.FC<PublicJournalSearchProps> = ({
   };
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 max-w-6xl">
+    <div className="container mx-auto p-2 sm:p-4 max-w-6xl pt-1 sm:pt-3">
       {/* 📱 모바일 최적화된 헤더 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
         <div className="flex items-center gap-3 sm:gap-4">
           <Button
             onClick={onClose}
-            variant="outline"
+            variant="ghost"
             size="sm"
-            className="border-gray-600 text-gray-300 hover:bg-gray-700"
+            className="h-10 rounded-xl border border-slate-700 bg-slate-900/90 text-slate-100 hover:bg-slate-800 hover:text-white px-3 shadow-sm"
           >
             <ArrowLeft className="h-4 w-4 mr-1 sm:mr-2" />
             <span className="text-sm sm:text-base">돌아가기</span>
@@ -413,7 +413,7 @@ export const PublicJournalSearch: React.FC<PublicJournalSearchProps> = ({
 
                     <Button
                       onClick={() => onUserChartView(profile)}
-                      className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base py-2"
+                      className="w-full bg-slate-800 hover:bg-slate-700 border border-cyan-300/20 text-cyan-100 text-sm sm:text-base py-2"
                       size="sm"
                     >
                       <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
