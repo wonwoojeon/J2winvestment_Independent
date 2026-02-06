@@ -239,12 +239,16 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
   }, []);
 
   const tickerHeight = compact ? '3rem' : '4.25rem';
+  const tickerGap = compact ? '1.5rem' : '2.5rem';
   const textSize = compact
     ? 'clamp(0.82rem, 2.6vw, 0.98rem)'
     : 'clamp(0.98rem, 3vw, 1.2rem)';
   const crossSize = compact
     ? 'clamp(0.95rem, 2.8vw, 1.05rem)'
     : 'clamp(1.1rem, 3.2vw, 1.35rem)';
+  const tickerShadow = compact
+    ? '0 0 18px rgba(56,189,248,0.18)'
+    : '0 0 32px rgba(56,189,248,0.28)';
 
   return (
     <div
@@ -252,7 +256,7 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
       className={`relative overflow-hidden transition-all duration-500 ease-out will-change-[height,transform,filter] ${className}`}
       style={{
         height: tickerHeight,
-        filter: compact ? 'drop-shadow(0 0 8px rgba(56,189,248,0.2))' : 'drop-shadow(0 0 16px rgba(56,189,248,0.35))'
+        boxShadow: tickerShadow
       }}
     >
       <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-slate-950/90 to-transparent z-10" />
@@ -263,11 +267,18 @@ const DashboardBibleVerseTicker: React.FC<{ className?: string; compact?: boolea
         style={{
           animation: 'scroll-continuous 180s linear infinite',
           width: 'max-content',
-          whiteSpace: 'nowrap'
+          whiteSpace: 'nowrap',
+          transform: 'translate3d(0,0,0)',
+          backfaceVisibility: 'hidden',
+          willChange: 'transform'
         }}
       >
         {[...shuffledVerses, ...shuffledVerses].map((verse, index) => (
-          <div key={index} className={`flex items-center gap-4 ${compact ? 'px-5' : 'px-10'}`}>
+          <div
+            key={index}
+            className="flex items-center transition-all duration-500 ease-out"
+            style={{ gap: tickerGap, paddingInline: '2rem' }}
+          >
             <span
               className="text-cyan-300 opacity-80 transition-all duration-500 ease-out"
               style={{ fontSize: crossSize }}
