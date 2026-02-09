@@ -39,6 +39,13 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+type DetailBackTarget = 'list' | 'userChart' | 'publicSearch';
+type DetailHistoryState = {
+  __j2wView?: 'detail';
+  __j2wJournalId?: string;
+  __j2wBackTarget?: DetailBackTarget;
+};
+
 // 통화 포맷팅
 const formatKoreanCurrency = (amount: number): string => {
   if (amount === 0) return "0원";
@@ -518,6 +525,31 @@ function Index() {
   const [headerHidden, setHeaderHidden] = useState(false);
   const lastScrollYRef = useRef(0);
 
+  const getDetailBackTarget = (): DetailBackTarget => {
+    if (selectedUserProfile) return 'userChart';
+    return user ? 'list' : 'publicSearch';
+  };
+
+  const openJournalDetail = (journal: InvestmentJournal) => {
+    if (typeof window !== 'undefined') {
+      const currentState =
+        window.history.state && typeof window.history.state === 'object'
+          ? window.history.state
+          : {};
+      const backTarget = getDetailBackTarget();
+      // Mark the current history entry with the screen we should return to.
+      window.history.replaceState({ ...currentState, __j2wBackTarget: backTarget }, '');
+      const nextState: DetailHistoryState = {
+        __j2wView: 'detail',
+        __j2wJournalId: journal.id,
+        __j2wBackTarget: backTarget
+      };
+      window.history.pushState({ ...currentState, ...nextState }, '');
+    }
+    setSelectedJournal(journal);
+    setCurrentView('detail');
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -577,6 +609,40 @@ function Index() {
       setHeaderHidden(false);
     }
   }, [currentView]);
+
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      const state = (event.state ?? {}) as DetailHistoryState;
+
+      // Forward navigation support: reopen the journal detail when the history entry is a detail view.
+      if (state.__j2wView === 'detail' && state.__j2wJournalId) {
+        const target = journals.find((journal) => journal.id === state.__j2wJournalId);
+        if (target) {
+          setSelectedJournal(target);
+          setCurrentView('detail');
+        }
+        return;
+      }
+
+      // Back navigation from detail: stay in-app and return to the logical previous screen.
+      if (currentView === 'detail') {
+        const backTarget = state.__j2wBackTarget;
+        if (backTarget === 'userChart' && selectedUserProfile) {
+          setCurrentView('userChart');
+        } else if (backTarget === 'publicSearch') {
+          setCurrentView('publicSearch');
+        } else if (!backTarget && selectedUserProfile) {
+          setCurrentView('userChart');
+        } else {
+          setCurrentView(user ? 'list' : 'publicSearch');
+        }
+        setSelectedJournal(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentView, journals, selectedUserProfile, user]);
 
   const loadUserProfile = async (userId: string) => {
     try {
@@ -654,16 +720,14 @@ function Index() {
   const handleChartPointClick = (date: string) => {
     const journal = journals.find(j => j.date === date);
     if (journal) {
-      setSelectedJournal(journal);
-      setCurrentView('detail');
+      openJournalDetail(journal);
     } else {
       alert(`${date}에 작성된 일지가 없습니다.`);
     }
   };
 
   const handleJournalClick = (journal: InvestmentJournal) => {
-    setSelectedJournal(journal);
-    setCurrentView('detail');
+    openJournalDetail(journal);
   };
 
   const handleJournalDelete = async (journalId: string) => {
@@ -786,8 +850,7 @@ function Index() {
   };
 
   const handleUserChartJournalClick = (journal: InvestmentJournal) => {
-    setSelectedJournal(journal);
-    setCurrentView('detail');
+    openJournalDetail(journal);
   };
 
   const handleGoToPublicSearch = () => {
@@ -1230,6 +1293,11 @@ function Index() {
         <JournalDetail
           journal={selectedJournal}
           onBack={() => {
+            const state = (window.history.state ?? {}) as DetailHistoryState;
+            if (state.__j2wView === 'detail') {
+              window.history.back();
+              return;
+            }
             setCurrentView(backTarget);
             setSelectedJournal(null);
           }}
