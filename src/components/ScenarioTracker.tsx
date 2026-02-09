@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp, MoreVertical, Minus, Type } from 'lucide-react';
+import { Plus, RefreshCw, Trash2, Edit3, ChevronDown, ChevronUp, MoreVertical, Type } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { InvestmentScenario } from '@/types/investment';
 import {
@@ -38,6 +39,20 @@ const emptyForm = {
   status: 'open' as ScenarioStatus
 };
 
+const FONT_SCALE_STORAGE_KEY = 'scenario_tracker_font_scale';
+const LEGACY_BODY_LG_PX = 18;
+const BASE_BODY_PX = 16;
+const FONT_SCALE_MIN = 0.85;
+const FONT_SCALE_MAX = (LEGACY_BODY_LG_PX * 1.5) / BASE_BODY_PX; // 27px max when base is 16px
+const FONT_SCALE_STEP = 0.01;
+
+const clampFontScale = (value: number) => Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, value));
+const mapLegacyScale = (value: string) => {
+  if (value === 'sm') return 0.9;
+  if (value === 'lg') return LEGACY_BODY_LG_PX / BASE_BODY_PX;
+  return 1;
+};
+
 interface ScenarioTrackerProps {
   userId?: string;
   readOnly?: boolean;
@@ -52,25 +67,34 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
   const [form, setForm] = useState(emptyForm);
   const [expandedScenarios, setExpandedScenarios] = useState<Record<string, boolean>>({});
   const isReadOnly = Boolean(readOnly);
-  const [fontScale, setFontScale] = useState<'sm' | 'md' | 'lg'>(() => {
-    if (typeof window === 'undefined') return 'md';
-    const saved = window.localStorage.getItem('scenario_tracker_font_scale');
-    return saved === 'sm' || saved === 'md' || saved === 'lg' ? saved : 'md';
+  const [fontScale, setFontScale] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    const saved = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    if (!saved) return 1;
+    if (saved === 'sm' || saved === 'md' || saved === 'lg') {
+      return mapLegacyScale(saved);
+    }
+    const parsed = Number(saved);
+    if (!Number.isFinite(parsed)) return 1;
+    return clampFontScale(parsed);
   });
 
   useEffect(() => {
-    window.localStorage.setItem('scenario_tracker_font_scale', fontScale);
+    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale.toFixed(3));
   }, [fontScale]);
 
-  const labelTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
-  const bodyTextClass = fontScale === 'sm' ? 'text-sm' : fontScale === 'md' ? 'text-base' : 'text-lg';
-  const subTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
-
-  const adjustFontScale = (delta: -1 | 1) => {
-    const scaleOrder: Array<'sm' | 'md' | 'lg'> = ['sm', 'md', 'lg'];
-    const idx = scaleOrder.indexOf(fontScale);
-    const next = Math.min(scaleOrder.length - 1, Math.max(0, idx + delta));
-    setFontScale(scaleOrder[next]);
+  const fontScalePercent = Math.round(fontScale * 100);
+  const titleTextStyle = {
+    fontSize: `${(16 * fontScale).toFixed(2)}px`,
+    lineHeight: fontScale >= 1.35 ? 1.45 : 1.5
+  };
+  const metaTextStyle = {
+    fontSize: `${(13 * fontScale).toFixed(2)}px`,
+    lineHeight: 1.45
+  };
+  const bodyTextStyle = {
+    fontSize: `${(16 * fontScale).toFixed(2)}px`,
+    lineHeight: fontScale >= 1.35 ? 1.75 : 1.65
   };
 
   const loadScenarios = async () => {
@@ -250,50 +274,50 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
       {showForm && !isReadOnly && (
         <CardContent className="pt-4 space-y-4 border-b border-slate-800/50">
           <div className="space-y-2">
-            <Label className={`text-slate-400 ${labelTextClass}`}>제목</Label>
+            <Label className="text-slate-400 text-sm">제목</Label>
             <Input
               value={form.title}
               onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-              className={`bg-slate-800 border-slate-700 text-white ${bodyTextClass}`}
+              className="bg-slate-800 border-slate-700 text-white text-base"
               placeholder="핵심 시나리오 한 줄"
             />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className={`text-slate-400 ${labelTextClass}`}>가정</Label>
+              <Label className="text-slate-400 text-sm">가정</Label>
               <Textarea
                 value={form.hypothesis}
                 onChange={(e) => setForm(prev => ({ ...prev, hypothesis: e.target.value }))}
-                className={`bg-slate-800 border-slate-700 text-white min-h-[120px] ${bodyTextClass}`}
+                className="bg-slate-800 border-slate-700 text-white min-h-[120px] text-base"
                 placeholder="핵심 가정"
               />
             </div>
             <div className="space-y-2">
-              <Label className={`text-slate-400 ${labelTextClass}`}>트리거</Label>
+              <Label className="text-slate-400 text-sm">트리거</Label>
               <Textarea
                 value={form.trigger}
                 onChange={(e) => setForm(prev => ({ ...prev, trigger: e.target.value }))}
-                className={`bg-slate-800 border-slate-700 text-white min-h-[120px] ${bodyTextClass}`}
+                className="bg-slate-800 border-slate-700 text-white min-h-[120px] text-base"
                 placeholder="확인해야 할 신호"
               />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className={`text-slate-400 ${labelTextClass}`}>무효화 조건</Label>
+            <Label className="text-slate-400 text-sm">무효화 조건</Label>
             <Textarea
               value={form.invalidation}
               onChange={(e) => setForm(prev => ({ ...prev, invalidation: e.target.value }))}
-              className={`bg-slate-800 border-slate-700 text-white min-h-[100px] ${bodyTextClass}`}
+              className="bg-slate-800 border-slate-700 text-white min-h-[100px] text-base"
               placeholder="시나리오가 깨지는 조건"
             />
           </div>
           <div className="space-y-2">
-            <Label className={`text-slate-400 ${labelTextClass}`}>상태</Label>
+            <Label className="text-slate-400 text-sm">상태</Label>
             <Select
               value={form.status}
               onValueChange={(value) => setForm(prev => ({ ...prev, status: value as ScenarioStatus }))}
             >
-              <SelectTrigger className={`bg-slate-800 border-slate-700 text-white ${bodyTextClass}`}>
+              <SelectTrigger className="bg-slate-800 border-slate-700 text-white text-base">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -323,12 +347,12 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
 
       <CardContent className="pt-4 space-y-3">
         {loading ? (
-          <div className={`text-slate-500 ${labelTextClass} flex items-center gap-2`}>
+          <div className="text-slate-500 text-sm flex items-center gap-2">
             <RefreshCw className="h-4 w-4 animate-spin" />
             시나리오를 불러오는 중...
           </div>
         ) : scenarios.length === 0 ? (
-          <div className={`text-slate-500 ${labelTextClass}`}>
+          <div className="text-slate-500 text-sm">
             아직 등록된 시나리오가 없습니다.
           </div>
         ) : (
@@ -339,18 +363,19 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 w-full">
                     <div
-                      className={`text-slate-100 font-semibold ${bodyTextClass} ${
+                      className={`text-slate-100 font-semibold ${
                         isExpanded ? 'whitespace-normal break-words' : 'truncate'
                       }`}
+                      style={titleTextStyle}
                     >
                       {scenario.title}
                     </div>
-                    <div className={`${subTextClass} text-slate-400 mt-1`}>
+                    <div className="text-slate-400 mt-1" style={metaTextStyle}>
                       작성일: {formatScenarioDate(scenario.created_at)}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-nowrap">
-                    <Badge variant="outline" className={`${subTextClass} shrink-0 ${statusStyles[scenario.status]}`}>
+                    <Badge variant="outline" className={`shrink-0 ${statusStyles[scenario.status]}`} style={metaTextStyle}>
                       {statusLabels[scenario.status]}
                     </Badge>
                     <Button
@@ -408,44 +433,49 @@ export const ScenarioTracker: React.FC<ScenarioTrackerProps> = ({ userId, readOn
                 </div>
                 {isExpanded && (
                   <div className="space-y-2">
-                    <div className="flex items-center justify-end">
-                      <div className="flex items-center gap-1 rounded-md border border-slate-700 bg-slate-900/70 px-1 py-1">
-                        <Type className="h-3.5 w-3.5 text-slate-300" />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-                          onClick={() => adjustFontScale(-1)}
-                          disabled={fontScale === 'sm'}
-                          aria-label="글자 크기 줄이기"
-                        >
-                          <Minus className="h-3.5 w-3.5" />
-                        </Button>
-                        <span className="px-1 text-xs text-slate-300">{fontScale.toUpperCase()}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-                          onClick={() => adjustFontScale(1)}
-                          disabled={fontScale === 'lg'}
-                          aria-label="글자 크기 키우기"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                        </Button>
+                    <div className="flex justify-end">
+                      <div className="w-full sm:w-[320px] rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 space-y-2">
+                        <div className="flex items-center justify-between text-xs text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            <Type className="h-3.5 w-3.5" />
+                            <span>글자 크기</span>
+                          </div>
+                          <span className="rounded-full border border-slate-600 px-2 py-0.5 font-medium text-slate-200">
+                            {fontScalePercent}%
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-slate-500">작게</span>
+                          <Slider
+                            value={[fontScale]}
+                            min={FONT_SCALE_MIN}
+                            max={FONT_SCALE_MAX}
+                            step={FONT_SCALE_STEP}
+                            onValueChange={(value) => {
+                              const next = value[0];
+                              if (typeof next === 'number') {
+                                setFontScale(clampFontScale(next));
+                              }
+                            }}
+                            aria-label="시나리오 글자 크기 조절"
+                            className="flex-1"
+                          />
+                          <span className="text-[11px] text-slate-500">크게</span>
+                        </div>
                       </div>
                     </div>
                     {scenario.hypothesis && (
-                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
+                      <div className="text-slate-300 whitespace-pre-wrap" style={bodyTextStyle}>
                         가정: {scenario.hypothesis}
                       </div>
                     )}
                     {scenario.trigger && (
-                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
+                      <div className="text-slate-300 whitespace-pre-wrap" style={bodyTextStyle}>
                         트리거: {scenario.trigger}
                       </div>
                     )}
                     {scenario.invalidation && (
-                      <div className={`${subTextClass} text-slate-400 whitespace-pre-wrap`}>
+                      <div className="text-slate-300 whitespace-pre-wrap" style={bodyTextStyle}>
                         무효화: {scenario.invalidation}
                       </div>
                     )}
