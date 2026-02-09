@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Trash2, Brain, Minus, Plus, Type } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { ArrowLeft, Edit, TrendingUp, TrendingDown, DollarSign, CheckCircle, FileText, ChevronDown, ChevronUp, Trash2, Brain, Type } from 'lucide-react';
 import { InvestmentJournal } from '@/types/investment';
 import { supabase } from '@/lib/supabase';
 import { getImportantMemoTag, getMemoText } from '@/utils/memo';
@@ -18,6 +19,20 @@ interface JournalDetailProps {
   hideAssetAmounts?: boolean;
 }
 
+const FONT_SCALE_STORAGE_KEY = 'journal_detail_font_scale';
+const LEGACY_BODY_LG_PX = 18;
+const BASE_BODY_PX = 16;
+const FONT_SCALE_MIN = 0.85;
+const FONT_SCALE_MAX = (LEGACY_BODY_LG_PX * 1.5) / BASE_BODY_PX; // 27px max when base is 16px
+const FONT_SCALE_STEP = 0.01;
+
+const clampFontScale = (value: number) => Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, value));
+const mapLegacyScale = (value: string) => {
+  if (value === 'sm') return 0.9;
+  if (value === 'lg') return LEGACY_BODY_LG_PX / BASE_BODY_PX;
+  return 1;
+};
+
 export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate, hideAssetAmounts }: JournalDetailProps) => {
   // 🔥 현재 사용자 정보 상태 추가
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -29,26 +44,67 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiOpen, setAiOpen] = useState(false);
   const hasComments = aiComments.length > 0;
-  const [fontScale, setFontScale] = useState<'sm' | 'md' | 'lg'>(() => {
-    if (typeof window === 'undefined') return 'md';
-    const saved = window.localStorage.getItem('journal_detail_font_scale');
-    return saved === 'sm' || saved === 'lg' ? saved : 'md';
+  const [fontScale, setFontScale] = useState<number>(() => {
+    if (typeof window === 'undefined') return 1;
+    const saved = window.localStorage.getItem(FONT_SCALE_STORAGE_KEY);
+    if (!saved) return 1;
+    if (saved === 'sm' || saved === 'md' || saved === 'lg') {
+      return mapLegacyScale(saved);
+    }
+    const parsed = Number(saved);
+    if (!Number.isFinite(parsed)) return 1;
+    return clampFontScale(parsed);
   });
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('journal_detail_font_scale', fontScale);
+    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, fontScale.toFixed(3));
   }, [fontScale]);
 
-  const labelTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
-  const bodyTextClass = fontScale === 'sm' ? 'text-sm' : fontScale === 'md' ? 'text-base' : 'text-lg';
-  const subTextClass = fontScale === 'sm' ? 'text-xs' : fontScale === 'md' ? 'text-sm' : 'text-base';
-  const scaleOrder: Array<'sm' | 'md' | 'lg'> = ['sm', 'md', 'lg'];
-  const adjustFontScale = (direction: 'down' | 'up') => {
-    const idx = scaleOrder.indexOf(fontScale);
-    const nextIndex = direction === 'up' ? Math.min(scaleOrder.length - 1, idx + 1) : Math.max(0, idx - 1);
-    setFontScale(scaleOrder[nextIndex]);
+  const fontScalePercent = Math.round(fontScale * 100);
+  const labelTextStyle = {
+    fontSize: `${(13 * fontScale).toFixed(2)}px`,
+    lineHeight: 1.45
   };
+  const bodyTextStyle = {
+    fontSize: `${(16.5 * fontScale).toFixed(2)}px`,
+    lineHeight: fontScale >= 1.35 ? 1.75 : 1.65
+  };
+  const subTextStyle = {
+    fontSize: `${(12 * fontScale).toFixed(2)}px`,
+    lineHeight: 1.45
+  };
+  const sliderControl = (
+    <div className="w-full sm:w-[360px] rounded-xl border border-slate-700/80 bg-slate-900/80 px-3 py-2 space-y-2">
+      <div className="flex items-center justify-between text-xs text-slate-300">
+        <div className="flex items-center gap-1.5">
+          <Type className="h-3.5 w-3.5" />
+          <span>글자 크기</span>
+        </div>
+        <span className="rounded-full border border-slate-600 px-2 py-0.5 font-medium text-slate-200">
+          {fontScalePercent}%
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500">작게</span>
+        <Slider
+          value={[fontScale]}
+          min={FONT_SCALE_MIN}
+          max={FONT_SCALE_MAX}
+          step={FONT_SCALE_STEP}
+          onValueChange={(value) => {
+            const next = value[0];
+            if (typeof next === 'number') {
+              setFontScale(clampFontScale(next));
+            }
+          }}
+          aria-label="투자일지 글자 크기 조절"
+          className="flex-1"
+        />
+        <span className="text-[11px] text-slate-500">크게</span>
+      </div>
+    </div>
+  );
 
   // 🔥 현재 사용자 확인
   useEffect(() => {
@@ -306,28 +362,6 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold break-keep">{journal.date} 투자일지</h1>
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-slate-950/40 px-2 py-1">
-            <Type className="h-4 w-4 text-slate-300" />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-              onClick={() => adjustFontScale('down')}
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-slate-300 px-1">{fontScale.toUpperCase()}</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-slate-300 hover:text-white hover:bg-slate-800"
-              onClick={() => adjustFontScale('up')}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button
@@ -354,6 +388,9 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </Button>
         </div>
       </div>
+      <div className="flex justify-end">
+        {sliderControl}
+      </div>
 
       {/* 🔥 다른 사람의 일지일 때 안내 메시지 표시 - 본인이 작성한 일지일때는 표시 안함 */}
       {!isOwner && currentUser && journal.user_id && journal.user_id !== currentUser.id && (
@@ -363,7 +400,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               <FileText className="h-4 w-4" />
               <span className="font-medium">다른 사용자의 일지</span>
             </div>
-            <p className={`${labelTextClass} text-yellow-300`}>
+            <p className="text-yellow-300" style={labelTextStyle}>
               이 일지는 다른 사용자가 작성한 일지입니다. 읽기 전용으로만 볼 수 있으며, 수정이나 삭제는 불가능합니다.
             </p>
           </CardContent>
@@ -385,23 +422,23 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-              <div className={`${labelTextClass} text-gray-400`}>총 자산</div>
-              <div className={`${bodyTextClass} font-bold text-blue-400`}>
+              <div className="text-gray-400" style={labelTextStyle}>총 자산</div>
+              <div className="font-bold text-blue-400" style={bodyTextStyle}>
                 {formatCurrency(journal.totalAssets || totalAssets)}
               </div>
             </div>
             <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-              <div className={`${labelTextClass} text-gray-400`}>해외주식</div>
-              <div className={`${bodyTextClass} font-semibold text-white`}>
+              <div className="text-gray-400" style={labelTextStyle}>해외주식</div>
+              <div className="font-semibold text-white" style={bodyTextStyle}>
                 {formatCurrency(foreignStocksTotalKRW)}
               </div>
-              <div className={`${subTextClass} text-gray-500`}>
+              <div className="text-gray-500" style={subTextStyle}>
                 {hideAssetAmounts ? '비공개' : `$${formatNumber(foreignStocksTotal)}`}
               </div>
             </div>
             <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-              <div className={`${labelTextClass} text-gray-400`}>국내주식</div>
-              <div className={`${bodyTextClass} font-semibold text-white`}>
+              <div className="text-gray-400" style={labelTextStyle}>국내주식</div>
+              <div className="font-semibold text-white" style={bodyTextStyle}>
                 {formatCurrency(domesticStocksTotal)}
               </div>
             </div>
@@ -420,7 +457,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               
               {expandedSections.assetDetails && (
                 hideAssetAmounts ? (
-                  <div className={`mt-4 ${subTextClass} text-gray-400`}>
+                  <div className="mt-4 text-gray-400" style={subTextStyle}>
                     자산 상세 정보는 비공개로 설정되어 있습니다.
                   </div>
                 ) : (
@@ -436,7 +473,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                           <div key={stock.id || index} className="flex justify-between items-center p-3 bg-gray-700 rounded-md shadow-sm">
                             <div>
                               <div className="font-medium text-white">{stock.symbol || '미지정'}</div>
-                              <div className={`${labelTextClass} text-gray-400`}>
+                              <div className="text-gray-400" style={labelTextStyle}>
                                 {formatNumber(stock.quantity || 0)}주 × ${formatNumber(stock.price || 0)}
                               </div>
                             </div>
@@ -444,7 +481,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                               <div className="font-semibold text-white">
                                 {formatCurrency((stock.price || 0) * (stock.quantity || 0) * effectiveRate)}
                               </div>
-                              <div className={`${subTextClass} text-gray-500`}>
+                              <div className="text-gray-500" style={subTextStyle}>
                                 ${formatNumber((stock.price || 0) * (stock.quantity || 0))}
                               </div>
                             </div>
@@ -465,7 +502,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                           <div key={stock.id || index} className="flex justify-between items-center p-3 bg-gray-700 rounded-md shadow-sm">
                             <div>
                               <div className="font-medium text-white">{stock.symbol || '미지정'}</div>
-                              <div className={`${labelTextClass} text-gray-400`}>
+                              <div className="text-gray-400" style={labelTextStyle}>
                                 {formatNumber(stock.quantity || 0)}주 × {formatNumber(stock.price || 0)}원
                               </div>
                             </div>
@@ -497,7 +534,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                             <div className="font-semibold text-white">
                               {formatCurrency(cashUsd * effectiveRate)}
                             </div>
-                            <div className={`${subTextClass} text-gray-500`}>
+                            <div className="text-gray-500" style={subTextStyle}>
                               ${formatNumber(cashUsd)}
                             </div>
                           </div>
@@ -529,18 +566,18 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
             <CardContent className="p-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                  <div className={`${labelTextClass} text-gray-400 mb-2`}>Fear & Greed Index</div>
+                  <div className="text-gray-400 mb-2" style={labelTextStyle}>Fear & Greed Index</div>
                   <div className="text-3xl font-bold text-purple-400 mb-1">
                     {safeJournal.psychologyCheck.fearGreedIndex || 50}
                   </div>
-                  <div className={`${labelTextClass} font-medium ${getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).color}`}>
+                  <div className={`font-medium ${getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).color}`} style={labelTextStyle}>
                     {getFearGreedClassification(safeJournal.psychologyCheck.fearGreedIndex || 50).text}
                   </div>
                 </div>
 
                 {coreIndicators.map((indicator) => (
                   <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                    <div className={`${labelTextClass} text-gray-400 mb-2`}>{indicator.label}</div>
+                    <div className="text-gray-400 mb-2" style={labelTextStyle}>{indicator.label}</div>
                     <div className="text-lg font-semibold text-white">
                       {indicator.value || '-'}
                     </div>
@@ -564,7 +601,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                   {extraIndicators.map((indicator) => (
                     <div key={indicator.label} className="text-center p-4 bg-gray-700 rounded-md shadow-sm">
-                      <div className={`${labelTextClass} text-gray-400 mb-2`}>{indicator.label}</div>
+                      <div className="text-gray-400 mb-2" style={labelTextStyle}>{indicator.label}</div>
                       <div className="text-lg font-semibold text-white">
                         {indicator.value || '-'}
                       </div>
@@ -591,7 +628,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </CardHeader>
           {expandedSections.trades && (
             <CardContent className="p-4">
-              <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+              <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-300" style={bodyTextStyle}>
                 {journal.trades}
               </div>
             </CardContent>
@@ -623,13 +660,13 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bullMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className={`flex items-center gap-2 ${labelTextClass} text-slate-200 dark:text-slate-100`}>
+                        <div key={item.id || index} className="flex items-center gap-2 text-slate-200 dark:text-slate-100" style={labelTextStyle}>
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
                       ))}
                     </div>
-                    <div className={`mt-4 ${subTextClass} text-gray-500`}>
+                    <div className="mt-4 text-gray-500" style={subTextStyle}>
                       체크된 항목: {safeJournal.bullMarketChecklist.filter(item => item.checked).length}개 / 전체: {safeJournal.bullMarketChecklist.length}개
                     </div>
                   </div>
@@ -644,13 +681,13 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                     </h3>
                     <div className="space-y-2">
                       {safeJournal.bearMarketChecklist.map((item, index) => (
-                        <div key={item.id || index} className={`flex items-center gap-2 ${labelTextClass} text-slate-200 dark:text-slate-100`}>
+                        <div key={item.id || index} className="flex items-center gap-2 text-slate-200 dark:text-slate-100" style={labelTextStyle}>
                           <span>{item.checked ? '✅' : '☐'}</span>
                           <span>{item.text}</span>
                         </div>
                       ))}
                     </div>
-                    <div className={`mt-4 ${subTextClass} text-gray-500`}>
+                    <div className="mt-4 text-gray-500" style={subTextStyle}>
                       체크된 항목: {safeJournal.bearMarketChecklist.filter(item => item.checked).length}개 / 전체: {safeJournal.bearMarketChecklist.length}개
                     </div>
                   </div>
@@ -675,11 +712,14 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
           </CardHeader>
           {expandedSections.memo && (
             <CardContent className="p-4">
+              <div className="mb-4 flex justify-end">
+                {sliderControl}
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {journal.marketIssues && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">시장 이슈</h3>
-                    <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+                    <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-200" style={bodyTextStyle}>
                       {journal.marketIssues}
                     </div>
                   </div>
@@ -688,7 +728,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                 {memoText && (
                   <div>
                     <h3 className="font-semibold mb-3 text-gray-300">투자 메모</h3>
-                    <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+                    <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-200" style={bodyTextStyle}>
                       {importantTag && (
                         <div className="text-amber-300 font-semibold mb-2">#{importantTag}</div>
                       )}
@@ -726,7 +766,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.planText && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">계획</h3>
-                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+                  <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-300" style={bodyTextStyle}>
                     {journal.planText}
                   </div>
                 </div>
@@ -734,7 +774,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.executionText && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">실행</h3>
-                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+                  <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-300" style={bodyTextStyle}>
                     {journal.executionText}
                   </div>
                 </div>
@@ -742,7 +782,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               {journal.deviationReason && (
                 <div>
                   <h3 className="font-semibold mb-2 text-gray-300">이탈 사유</h3>
-                  <div className={`whitespace-pre-wrap ${bodyTextClass} bg-gray-700 p-4 rounded-md text-gray-300`}>
+                  <div className="whitespace-pre-wrap bg-gray-700 p-4 rounded-md text-gray-300" style={bodyTextStyle}>
                     {journal.deviationReason}
                   </div>
                 </div>
@@ -769,11 +809,11 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               </Badge>
             )}
           </div>
-          <p className={`${labelTextClass} text-slate-200/70`}>최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
+          <p className="text-slate-200/70" style={labelTextStyle}>최근 일지 기준으로 5개 찬성, 5개 반대 페르소나 댓글</p>
         </CardHeader>
         {aiOpen && (
           <CardContent className="space-y-3">
-            {aiError && <p className={`${labelTextClass} text-rose-300`}>{aiError}</p>}
+            {aiError && <p className="text-rose-300" style={labelTextStyle}>{aiError}</p>}
             {aiComments.length === 0 && (
               <div className="flex justify-end pb-1">
                 <Button
@@ -786,7 +826,7 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
               </div>
             )}
             {aiComments.length === 0 && (
-              <p className={`${labelTextClass} text-slate-200/60`}>아직 생성된 댓글이 없습니다.</p>
+              <p className="text-slate-200/60" style={labelTextStyle}>아직 생성된 댓글이 없습니다.</p>
             )}
             {aiComments.length > 0 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -802,9 +842,9 @@ export const JournalDetail = ({ journal, onBack, onEdit, onDelete, exchangeRate,
                       >
                         {comment.sentiment === 'pro' ? '찬성' : '반대'}
                       </Badge>
-                      <span className={`${labelTextClass} text-slate-200/80`}>{comment.persona}</span>
+                      <span className="text-slate-200/80" style={labelTextStyle}>{comment.persona}</span>
                     </div>
-                    <p className={`${bodyTextClass} text-slate-100/90`}>{comment.content}</p>
+                    <p className="text-slate-100/90" style={bodyTextStyle}>{comment.content}</p>
                   </div>
                 ))}
               </div>
