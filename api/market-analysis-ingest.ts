@@ -1,11 +1,99 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import { isMarketAnalysisPayloadError, readMarketAnalysisErrorMessage, toMarketAnalysisRowInput } from '../src/lib/marketAnalysis';
+import { z } from 'zod';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, content-type'
+};
+
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+const marketAnalysisTickerSchema = z.object({
+  symbol: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  stance: z.string().trim().min(1).optional(),
+  summary: z.string().trim().min(1).optional()
+});
+
+const marketAnalysisPayloadSchema = z.object({
+  reportDate: z.string().regex(datePattern, 'reportDate must be YYYY-MM-DD'),
+  marketScope: z.string().trim().min(1).optional().default('us'),
+  title: z.string().trim().min(1),
+  summary: z.string().trim().min(1),
+  highlights: z.array(z.string().trim().min(1)).optional().default([]),
+  tickers: z.array(marketAnalysisTickerSchema).optional().default([]),
+  sourceName: z.string().trim().min(1).optional().default('daily_stock_analysis'),
+  sourceUrl: z.string().trim().url().optional(),
+  rawPayload: z.record(z.unknown()).optional().default({})
+});
+
+type RequestLike = {
+  method?: string;
+  headers: {
+    authorization?: string | string[];
+  };
+  body?: unknown;
+};
+
+type ResponseLike = {
+  setHeader: (name: string, value: string) => void;
+  status: (code: number) => ResponseLike;
+  json: (body: unknown) => ResponseLike;
+  end: () => void;
+};
+
+const dedupeStrings = (items: string[]) => [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+
+const normalizeTickers = (tickers: Array<z.infer<typeof marketAnalysisTickerSchema>>) =>
+  tickers
+    .map((ticker) => ({
+      symbol: ticker.symbol.trim().toUpperCase(),
+      name: ticker.name?.trim() || undefined,
+      stance: ticker.stance?.trim() || undefined,
+      summary: ticker.summary?.trim() || undefined
+    }))
+    .filter((ticker) => ticker.symbol.length > 0);
+
+const normalizeMarketAnalysisPayload = (payload: unknown) => {
+  const parsed = marketAnalysisPayloadSchema.parse(payload);
+
+  return {
+    ...parsed,
+    highlights: dedupeStrings(parsed.highlights),
+    tickers: normalizeTickers(parsed.tickers)
+  };
+};
+
+const toMarketAnalysisRowInput = (payload: unknown) => {
+  const normalized = normalizeMarketAnalysisPayload(payload);
+
+  return {
+    report_date: normalized.reportDate,
+    market_scope: normalized.marketScope,
+    title: normalized.title,
+    summary: normalized.summary,
+    highlights: normalized.highlights,
+    tickers: normalized.tickers,
+    source_name: normalized.sourceName,
+    source_url: normalized.sourceUrl ?? null,
+    raw_payload: normalized.rawPayload,
+    updated_at: new Date().toISOString()
+  };
+};
+
+const isMarketAnalysisPayloadError = (error: unknown): error is z.ZodError => error instanceof z.ZodError;
+
+const readMarketAnalysisErrorMessage = (error: unknown) => {
+  if (isMarketAnalysisPayloadError(error)) {
+    return error.issues.map((issue) => issue.message).join(', ');
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unknown error';
 };
 
 const readBearerToken = (authorizationHeader?: string | string[]) => {
@@ -14,7 +102,7 @@ const readBearerToken = (authorizationHeader?: string | string[]) => {
   return header.slice('Bearer '.length).trim();
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: RequestLike, res: ResponseLike) {
   Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
 
   if (req.method === 'OPTIONS') {
