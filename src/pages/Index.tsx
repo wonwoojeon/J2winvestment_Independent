@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import JournalForm from '../components/JournalForm';
 import { JournalDetail } from '../components/JournalDetail';
@@ -503,6 +504,7 @@ const deriveStance = (journal: InvestmentJournal | null, exchangeRate: number): 
 };
 
 function Index() {
+  const navigate = useNavigate();
   const TICKER_COMPACT_ON_SCROLL_Y = 72;
   const TICKER_EXPAND_ON_SCROLL_Y = 28;
   const [user, setUser] = useState(null);
@@ -528,6 +530,11 @@ function Index() {
   const getDetailBackTarget = (): DetailBackTarget => {
     if (selectedUserProfile) return 'userChart';
     return user ? 'list' : 'publicSearch';
+  };
+
+  const handleGoToMarketAnalysis = () => {
+    setMobileMenuOpen(false);
+    navigate('/market-analysis');
   };
 
   const openJournalDetail = (journal: InvestmentJournal) => {
@@ -1343,6 +1350,13 @@ function Index() {
               </button>
               
               <button
+                onClick={handleGoToMarketAnalysis}
+                className="w-full bg-cyan-500/12 hover:bg-cyan-500/18 text-cyan-50 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-cyan-400/20 backdrop-blur"
+              >
+                오늘의 시장분석
+              </button>
+
+              <button
                 onClick={handleGoToPublicSearch}
                 className="w-full bg-slate-950/60 hover:bg-slate-900/70 text-slate-200 px-8 py-3.5 rounded-xl text-lg font-medium transition-all flex items-center justify-center gap-3 border border-white/10 backdrop-blur"
               >
@@ -1434,6 +1448,14 @@ function Index() {
             </Button>
             
             <Button
+              onClick={handleGoToMarketAnalysis}
+              variant="ghost"
+              className="text-slate-300 hover:text-white hover:bg-white/10"
+            >
+              오늘의 시장분석
+            </Button>
+
+            <Button
               onClick={() => setCurrentView('profile')}
               variant="ghost"
               className="text-slate-300 hover:text-white hover:bg-white/10"
@@ -1502,6 +1524,14 @@ function Index() {
                 새 일지 작성
               </Button>
               
+              <Button
+                onClick={handleGoToMarketAnalysis}
+                variant="ghost"
+                className="w-full justify-start text-slate-200 hover:bg-white/10"
+              >
+                오늘의 시장분석
+              </Button>
+
               <Button
                 onClick={handleGoToPublicSearch}
                 variant="ghost"
