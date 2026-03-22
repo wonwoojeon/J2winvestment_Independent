@@ -78,6 +78,12 @@ export const mapMarketAnalysisReport = (row: MarketAnalysisReportRow): MarketAna
   updatedAt: row.updated_at
 });
 
+
+export const selectPreferredMarketAnalysisReports = (
+  reports: MarketAnalysisReport[],
+  preferredScope = 'us'
+): MarketAnalysisReport[] => reports.filter((report) => report.marketScope === preferredScope);
+
 export const isMarketAnalysisPayloadError = (error: unknown): error is z.ZodError => error instanceof z.ZodError;
 
 export const createMarketAnalysisEmptyState = (): MarketAnalysisReport[] => [];
