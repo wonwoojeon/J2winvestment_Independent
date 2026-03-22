@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/lib/supabase';
-import { createMarketAnalysisEmptyState, mapMarketAnalysisReport } from '@/lib/marketAnalysis';
+import { createMarketAnalysisEmptyState, mapMarketAnalysisReport, selectPreferredMarketAnalysisReports } from '@/lib/marketAnalysis';
 import type { MarketAnalysisReport, MarketAnalysisReportRow } from '@/types/marketAnalysis';
 
 const formatDate = (date: string) =>
@@ -79,6 +79,7 @@ function MarketAnalysisPage() {
       const { data, error } = await supabase
         .from('market_analysis_reports')
         .select('*')
+        .eq('market_scope', 'us')
         .order('report_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(8);
@@ -92,7 +93,7 @@ function MarketAnalysisPage() {
         return;
       }
 
-      const nextReports = ((data || []) as MarketAnalysisReportRow[]).map(mapMarketAnalysisReport);
+      const nextReports = selectPreferredMarketAnalysisReports(((data || []) as MarketAnalysisReportRow[]).map(mapMarketAnalysisReport));
       setReports(nextReports);
       setLoading(false);
     };
