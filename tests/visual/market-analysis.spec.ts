@@ -68,18 +68,30 @@ const mockWatchlist = {
   }
 };
 
-const mockMarketAnalysisFeed = async (page: Page) => {
+const mockAdminEmptyWatchlist = {
+  ok: true,
+  items: [],
+  viewer: {
+    email: 'admin@example.com',
+    isAdmin: true
+  }
+};
+
+const mockMarketAnalysisFeed = async (
+  page: Page,
+  watchlist: typeof mockWatchlist | typeof mockAdminEmptyWatchlist = mockWatchlist
+) => {
   await page.addInitScript(
-    ({ reports, watchlist }) => {
+    ({ reports, watchlistData }) => {
       const testWindow = window as Window & {
         __MARKET_ANALYSIS_TEST_ROWS__?: unknown;
         __MARKET_ANALYSIS_TEST_WATCHLIST__?: unknown;
       };
 
       testWindow.__MARKET_ANALYSIS_TEST_ROWS__ = reports;
-      testWindow.__MARKET_ANALYSIS_TEST_WATCHLIST__ = watchlist;
+      testWindow.__MARKET_ANALYSIS_TEST_WATCHLIST__ = watchlistData;
     },
-    { reports: mockReports, watchlist: mockWatchlist }
+    { reports: mockReports, watchlistData: watchlist }
   );
 };
 
@@ -117,5 +129,15 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(historyDialog.getByText('히스토리 상세')).toBeVisible();
     await page.mouse.click(10, 10);
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('admin session hides login button and exposes quick add CTA when watchlist is empty', async ({ page }) => {
+    await mockMarketAnalysisFeed(page, mockAdminEmptyWatchlist);
+    await page.goto('/market-analysis', { waitUntil: 'networkidle' });
+
+    await expect(page.getByRole('button', { name: '관리자 로그인' })).toHaveCount(0);
+    await expect(page.getByText('관리자 세션 · admin@example.com')).toBeVisible();
+    await expect(page.getByText('상시 watchlist가 아직 비어 있습니다.')).toBeVisible();
+    await expect(page.getByRole('button', { name: '상시 추적 종목 추가로 이동' })).toBeVisible();
   });
 });
