@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { shouldRefreshMarketAnalysisForAuthEvent } from '@/lib/marketAnalysisAuth';
 import { supabase } from '@/lib/supabase';
 import { createMarketAnalysisEmptyState, mapMarketAnalysisReport, selectPreferredMarketAnalysisReports } from '@/lib/marketAnalysis';
 import {
@@ -148,14 +149,17 @@ function MarketAnalysisPage() {
   const [watchlistLoading, setWatchlistLoading] = useState(true);
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
   const [viewerEmail, setViewerEmail] = useState<string | null>(null);
+  const [viewerResolved, setViewerResolved] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [watchlistForm, setWatchlistForm] = useState(defaultWatchlistForm);
   const [adminNotice, setAdminNotice] = useState<string | null>(null);
   const [submittingWatchlist, setSubmittingWatchlist] = useState(false);
   const [deletingWatchlistId, setDeletingWatchlistId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
-  const [refreshTick, setRefreshTick] = useState(0);
+  const [reloadVersion, setReloadVersion] = useState(0);
   const [expandedHistoryReport, setExpandedHistoryReport] = useState<MarketAnalysisReport | null>(null);
+  const adminPanelRef = useRef<HTMLDivElement | null>(null);
+  const watchlistSymbolInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -175,6 +179,7 @@ function MarketAnalysisPage() {
         setWatchlistItems(selectActiveMarketAnalysisWatchlist(fixtureWatchlist?.items || []));
         setIsAdmin(Boolean(fixtureWatchlist?.viewer?.isAdmin));
         setViewerEmail(fixtureWatchlist?.viewer?.email ?? null);
+        setViewerResolved(true);
         setWatchlistError(null);
         setLoading(false);
         setWatchlistLoading(false);
@@ -224,26 +229,35 @@ function MarketAnalysisPage() {
         setWatchlistItems([]);
         setIsAdmin(false);
         setWatchlistError(readErrorMessage(watchlistLoadError));
-      }
+      } finally {
+        if (!active) return;
 
-      setLoading(false);
-      setWatchlistLoading(false);
+        setViewerResolved(true);
+        setLoading(false);
+        setWatchlistLoading(false);
+      }
     };
 
-    loadReports();
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(() => {
-      if (!active) return;
-      setRefreshTick((current) => current + 1);
-    });
+    void loadReports();
 
     return () => {
       active = false;
+    };
+  }, [reloadVersion]);
+
+  useEffect(() => {
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (!shouldRefreshMarketAnalysisForAuthEvent(event)) return;
+      setViewerResolved(false);
+      setReloadVersion((current) => current + 1);
+    });
+
+    return () => {
       subscription.unsubscribe();
     };
-  }, [refreshTick]);
+  }, []);
 
   const latestReport = reports[0] ?? null;
   const olderReports = useMemo(() => reports.slice(1), [reports]);
@@ -343,6 +357,13 @@ function MarketAnalysisPage() {
     }
   };
 
+  const handleAdminWatchlistShortcut = () => {
+    adminPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      watchlistSymbolInputRef.current?.focus();
+    }, 180);
+  };
+
   const topStats = useMemo(
     () => [
       {
@@ -382,7 +403,11 @@ function MarketAnalysisPage() {
           </Button>
 
           <div className="flex flex-wrap items-center gap-3">
-            {viewerEmail ? (
+            {!viewerResolved ? (
+              <Badge variant="outline" className="border-white/15 bg-white/5 px-3 py-2 text-slate-300">
+                세션 확인 중...
+              </Badge>
+            ) : viewerEmail ? (
               <Badge variant="outline" className="border-white/15 bg-white/5 px-3 py-2 text-slate-100">
                 {isAdmin ? <ShieldCheck className="mr-2 h-4 w-4 text-emerald-200" /> : <LockKeyhole className="mr-2 h-4 w-4 text-slate-300" />}
                 {isAdmin ? `관리자 세션 · ${viewerEmail}` : `읽기 전용 세션 · ${viewerEmail}`}
@@ -399,13 +424,13 @@ function MarketAnalysisPage() {
               </Button>
             )}
 
-            <Button
-              variant="outline"
-              className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10"
-              onClick={() => setRefreshTick((current) => current + 1)}
-            >
-              <RefreshCcw className="mr-2 h-4 w-4" />
-              새로고침
+              <Button
+                variant="outline"
+                className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10"
+                onClick={() => setReloadVersion((current) => current + 1)}
+              >
+                <RefreshCcw className="mr-2 h-4 w-4" />
+                새로고침
             </Button>
           </div>
         </div>
@@ -533,7 +558,21 @@ function MarketAnalysisPage() {
                           <Radar className="h-4 w-4 text-emerald-200" />
                           추적 종목
                         </CardTitle>
-                        <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/62">상시 추적 종목</div>
+                        <div className="flex items-center gap-2">
+                          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/62">상시 추적 종목</div>
+                          {isAdmin ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-full border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+                              onClick={handleAdminWatchlistShortcut}
+                              aria-label="상시 추적 종목 추가로 이동"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          ) : null}
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -551,6 +590,12 @@ function MarketAnalysisPage() {
                       {watchlistError ? (
                         <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100/88">
                           상시 watchlist를 불러오지 못해 현재는 오늘 리포트 기준으로 표시합니다.
+                        </div>
+                      ) : null}
+
+                      {isAdmin && !watchlistSummary.usesPersistentWatchlist ? (
+                        <div className="mb-4 rounded-2xl border border-emerald-300/18 bg-emerald-400/8 px-4 py-3 text-sm leading-6 text-emerald-100/88">
+                          상시 watchlist가 아직 비어 있습니다. 오른쪽 관리자 패널 또는 위 + 버튼으로 바로 추가할 수 있습니다.
                         </div>
                       ) : null}
 
@@ -577,7 +622,20 @@ function MarketAnalysisPage() {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-slate-300/65">추적 종목이 아직 등록되지 않았습니다.</p>
+                        <div className="space-y-3">
+                          <p className="text-sm text-slate-300/65">추적 종목이 아직 등록되지 않았습니다.</p>
+                          {isAdmin ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-white/12 bg-white/5 text-slate-100 hover:bg-white/10"
+                              onClick={handleAdminWatchlistShortcut}
+                            >
+                              <Plus className="mr-2 h-4 w-4" />
+                              상시 추적 종목 추가
+                            </Button>
+                          ) : null}
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -677,6 +735,7 @@ function MarketAnalysisPage() {
             </Card>
 
             {isAdmin ? (
+              <div ref={adminPanelRef}>
               <Card className="border-white/10 bg-[linear-gradient(180deg,#0a0a0a,#151515)] text-slate-100 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -709,6 +768,7 @@ function MarketAnalysisPage() {
                         <Label htmlFor="watchlist-symbol" className="text-slate-200">종목 코드</Label>
                         <Input
                           id="watchlist-symbol"
+                          ref={watchlistSymbolInputRef}
                           value={watchlistForm.symbol}
                           onChange={(event) => handleWatchlistFieldChange('symbol', event.target.value.toUpperCase())}
                           placeholder="예: NVDA"
@@ -806,6 +866,7 @@ function MarketAnalysisPage() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             ) : null}
           </aside>
         </div>
