@@ -6,7 +6,7 @@ import {
   readWatchlistErrorMessage,
   readWatchlistServerEnv,
   watchlistCorsHeaders,
-} from '../_lib/market-analysis-watchlist.ts';
+} from '../lib/market-analysis-watchlist.ts';
 
 type RequestLike = {
   method?: string;
