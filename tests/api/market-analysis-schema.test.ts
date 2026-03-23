@@ -44,3 +44,20 @@ test('normalizeMarketAnalysisPayload keeps enriched ticker fields', () => {
   assert.equal(normalized.tickers[0].news?.length, 1);
   assert.equal(normalized.tickers[0].news?.[0].title, 'Tesla tests new chip capacity plan');
 });
+
+
+test('normalizeMarketAnalysisPayload drops table-like highlight noise', () => {
+  const normalized = normalizeMarketAnalysisPayload({
+    reportDate: '2026-03-23',
+    marketScope: 'us',
+    title: '미국 증시 데일리 분석',
+    summary: '요약',
+    highlights: [
+      'S&P 500은 6500선 테스트 구간에 진입했습니다.',
+      '| 지수 | 현재가 | 등락률 | 거래대금 |',
+      '|------|------|------|------|',
+    ],
+  });
+
+  assert.deepEqual(normalized.highlights, ['S&P 500은 6500선 테스트 구간에 진입했습니다.']);
+});
