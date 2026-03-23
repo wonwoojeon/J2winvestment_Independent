@@ -8,7 +8,7 @@ import {
   readWatchlistViewer,
   toMarketAnalysisWatchlistRowInput,
   watchlistCorsHeaders,
-} from '../lib/market-analysis-watchlist.ts';
+} from '../lib/market-analysis-watchlist.js';
 
 type RequestLike = {
   method?: string;

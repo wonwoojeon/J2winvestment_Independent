@@ -9,12 +9,42 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, '../..');
 
 test('market analysis watchlist handlers can be imported by node esm runtime', () => {
+  const outDir = '.tmp-watchlist-runtime-test';
+
+  const compile = spawnSync(
+    'npx',
+    [
+      'tsc',
+      'api/market-analysis-watchlist/index.ts',
+      'api/market-analysis-watchlist/[id].ts',
+      'api/lib/market-analysis-watchlist.ts',
+      '--outDir',
+      outDir,
+      '--module',
+      'NodeNext',
+      '--target',
+      'ES2022',
+      '--moduleResolution',
+      'nodenext',
+      '--esModuleInterop',
+      '--skipLibCheck',
+      '--pretty',
+      'false',
+    ],
+    {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(compile.status, 0, `compile stdout:\n${compile.stdout}\ncompile stderr:\n${compile.stderr}`);
+
   const result = spawnSync(
     'node',
     [
       '--input-type=module',
       '-e',
-      "await import('./api/market-analysis-watchlist/index.ts'); await import('./api/market-analysis-watchlist/[id].ts');",
+      `await import('./${outDir}/api/market-analysis-watchlist/index.js'); await import('./${outDir}/api/market-analysis-watchlist/[id].js');`,
     ],
     {
       cwd: repoRoot,
