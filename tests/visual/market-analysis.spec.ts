@@ -191,17 +191,20 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
-  test('market analysis renders enriched watchlist card with price, commentary, news and refresh CTA', async ({ page }) => {
+  test('market analysis renders denser watchlist card without metadata labels', async ({ page }) => {
     await mockMarketAnalysisFeed(page, mockWatchlist, { live: mockWatchlistLive });
     await page.goto('/market-analysis', { waitUntil: 'networkidle' });
 
     await expect(page.getByText('오늘 볼 종목')).toBeVisible();
     await expect(page.getByText('NVDA')).toBeVisible();
     await expect(page.getByText('NVIDIA', { exact: true })).toBeVisible();
-    await expect(page.getByText('AI 지출 사이클과 실적 민감도가 높은 핵심 관찰 종목입니다.')).toBeVisible();
-    await expect(page.getByText('반등 추격보다 900달러 지지 여부를 먼저 확인하는 편이 낫습니다.')).toBeVisible();
-    await expect(page.getByText('NVIDIA keeps AI demand in focus')).toBeVisible();
+    await expect(page.getByText('$910.12')).toBeVisible();
+    await expect(page.getByText('-$18.45')).toBeVisible();
+    await expect(page.getByText('-1.99%')).toBeVisible();
     await expect(page.getByRole('button', { name: '새로고침', exact: true })).toBeVisible();
+    await expect(page.getByText('관리자 watchlist')).toHaveCount(0);
+    await expect(page.getByText('최근 종가')).toHaveCount(0);
+    await expect(page.getByText('5분 캐시 시세')).toHaveCount(0);
   });
 
 

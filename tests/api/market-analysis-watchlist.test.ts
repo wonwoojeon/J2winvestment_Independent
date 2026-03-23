@@ -196,7 +196,7 @@ test('readWatchlistSummary prefers persistent watchlist count over report ticker
   ]);
 
   assert.equal(summary.countLabel, '3개');
-  assert.equal(summary.detail, '관리자 watchlist 기준');
+  assert.equal(summary.detail, '상시 추적 기준');
 });
 
 test('readWatchlistSummary falls back to report tickers when watchlist is empty', () => {
