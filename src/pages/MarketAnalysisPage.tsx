@@ -171,6 +171,43 @@ const readErrorMessage = (error: unknown) => {
   return '요청을 처리하지 못했습니다.';
 };
 
+const BACKGROUND_VIDEO_URL = '/background.mp4';
+
+const MarketAnalysisBackgroundDecor: React.FC = () => {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = 0.65;
+  }, []);
+
+  return (
+    <div className="fixed inset-0 -z-10 overflow-hidden">
+      <video
+        ref={videoRef}
+        className="absolute inset-0 h-full w-full object-cover opacity-55"
+        style={{ filter: 'saturate(1.3) hue-rotate(235deg) brightness(0.38) contrast(1.25)' }}
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        <source src={BACKGROUND_VIDEO_URL} type="video/mp4" />
+      </video>
+      <div className="absolute inset-0 bg-slate-950/80" />
+      <div
+        className="absolute inset-0 opacity-80"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 12% 18%, rgba(88,28,135,0.5), transparent 50%), radial-gradient(circle at 85% 12%, rgba(30,64,175,0.45), transparent 55%), radial-gradient(circle at 75% 85%, rgba(17,24,39,0.8), transparent 55%)'
+        }}
+      />
+      <div className="absolute -top-48 right-[-12%] h-[560px] w-[560px] rounded-full bg-purple-500/20 blur-[170px] mix-blend-screen" />
+      <div className="absolute bottom-[-25%] left-[-12%] h-[620px] w-[620px] rounded-full bg-indigo-700/20 blur-[190px] mix-blend-screen" />
+    </div>
+  );
+};
+
 function MarketAnalysisPage() {
   const [reports, setReports] = useState<MarketAnalysisReport[]>(createMarketAnalysisEmptyState());
   const [loading, setLoading] = useState(true);
@@ -504,8 +541,9 @@ function MarketAnalysisPage() {
 
   return (
     <Dialog open={Boolean(detailDialogState)} onOpenChange={(open) => !open && setDetailDialogState(null)}>
-      <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_24%),linear-gradient(180deg,#010101_0%,#050505_42%,#0a0a0a_100%)] text-slate-100">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
+      <div className="relative min-h-screen text-slate-100 font-sans selection:bg-cyan-400/30">
+      <MarketAnalysisBackgroundDecor />
+      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 pb-8 pt-8 sm:px-6 sm:pt-10 lg:px-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
             <Link to="/">
@@ -547,7 +585,7 @@ function MarketAnalysisPage() {
           </div>
         </div>
 
-        <section className="relative overflow-hidden rounded-[34px] border border-white/10 bg-[linear-gradient(180deg,rgba(8,8,8,0.98),rgba(18,18,18,0.96))] p-6 shadow-[0_30px_80px_rgba(0,0,0,0.45)] sm:p-8">
+        <section className="glass-panel relative overflow-hidden rounded-[34px] bg-slate-950/45 p-6 shadow-[0_35px_90px_-45px_rgba(15,23,42,0.95)] sm:p-8">
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.05),transparent_34%,rgba(255,255,255,0.02))]" />
           <div className="pointer-events-none absolute -right-16 top-10 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
 
@@ -559,8 +597,8 @@ function MarketAnalysisPage() {
               </div>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-3xl font-bold font-display sm:text-5xl">오늘의 시장분석</h1>
-                  <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-200/72 sm:text-base">
+                  <h1 className="break-keep text-3xl font-bold font-display leading-[0.98] sm:text-[3.45rem]">오늘의 시장분석</h1>
+                  <p className="mt-4 max-w-3xl break-keep text-[0.96rem] leading-7 text-slate-200/78 sm:text-[1rem] sm:leading-8">
                     GitHub Actions에서 생성한 시장 리포트를 모아 보고, 핵심 시그널과 추적 종목을 한 화면에서 읽기 좋게 정리합니다.
                     기록형 일지와 실전 판단 사이를 자연스럽게 이어주는 공개 피드입니다.
                   </p>
@@ -584,15 +622,15 @@ function MarketAnalysisPage() {
                   마지막 갱신 {formatDateTime(latestTimestamp)}
                 </Badge>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-300/68">{signalTone.description}</p>
+              <p className="mt-3 break-keep text-sm leading-6 text-slate-300/74">{signalTone.description}</p>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               {topStats.map((stat) => (
-                <div key={stat.label} className="rounded-[24px] border border-white/10 bg-black/70 px-4 py-4 shadow-[0_18px_45px_rgba(0,0,0,0.28)] backdrop-blur">
+                <div key={stat.label} className="rounded-[24px] border border-white/10 bg-slate-950/55 px-4 py-4 shadow-[0_20px_50px_-36px_rgba(15,23,42,0.95)] backdrop-blur-xl">
                   <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400/68">{stat.label}</div>
                   <div className="mt-3 text-lg font-semibold text-white sm:text-xl">{stat.value}</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-300/62">{stat.detail}</p>
+                  <p className="mt-2 break-keep text-sm leading-6 text-slate-300/72">{stat.detail}</p>
                 </div>
               ))}
             </div>
@@ -607,7 +645,7 @@ function MarketAnalysisPage() {
               </div>
             ) : latestReport ? (
               <>
-                <div className="rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,#050505,#0d0d0d)] p-6 shadow-[0_28px_72px_rgba(0,0,0,0.42)] sm:p-8">
+                <div className="glass-panel rounded-[32px] bg-slate-950/48 p-6 shadow-[0_32px_80px_-44px_rgba(15,23,42,0.95)] sm:p-8">
                     <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-300/58">
                       <span className="inline-flex items-center gap-2">
                         <CalendarDays className="h-3.5 w-3.5" />
@@ -620,8 +658,8 @@ function MarketAnalysisPage() {
                     </div>
                     <div className="mt-6 max-w-4xl">
                       <div className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-400/70">핵심 판단</div>
-                      <h2 className="mt-4 text-3xl font-semibold leading-tight text-white sm:text-4xl xl:text-[2.9rem]">{latestReport.title}</h2>
-                      <p className="mt-6 whitespace-pre-line text-base leading-9 text-slate-200/80 sm:text-[1.06rem]">
+                      <h2 className="mt-4 break-keep text-[2rem] font-semibold leading-[1.08] text-white sm:text-[2.6rem] xl:text-[3rem]">{latestReport.title}</h2>
+                      <p className="mt-6 whitespace-pre-line break-keep text-[0.98rem] leading-8 text-slate-200/84 sm:text-[1.03rem] sm:leading-[2rem]">
                         {latestReport.summary}
                       </p>
                     </div>
@@ -640,7 +678,7 @@ function MarketAnalysisPage() {
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)]">
-                  <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.24)]">
+                  <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
                     <CardHeader>
                       <CardTitle className="flex items-center gap-2 text-base">
                           <LineChart className="h-4 w-4 text-cyan-200" />
@@ -656,10 +694,10 @@ function MarketAnalysisPage() {
                               type="button"
                               aria-label={`핵심 포인트 ${index + 1} 상세 보기`}
                               onClick={() => setDetailDialogState({ kind: 'highlight', index, content: highlight })}
-                              className="flex min-h-[220px] h-full flex-col rounded-[22px] border border-white/10 bg-black/70 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-white/20"
+                              className="flex min-h-[198px] h-full flex-col rounded-[22px] border border-white/10 bg-slate-950/58 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/20"
                             >
                               <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/58">Point {String(index + 1).padStart(2, '0')}</div>
-                              <p className="mt-3 line-clamp-6 text-sm leading-7 text-slate-200/78">{highlight}</p>
+                              <p className="mt-3 line-clamp-6 break-keep text-[0.95rem] leading-[1.8] text-slate-100/82">{highlight}</p>
                               <div className="mt-auto pt-4">
                                 <span className="inline-flex items-center rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-200/72">
                                   전체 보기
@@ -674,7 +712,7 @@ function MarketAnalysisPage() {
                     </CardContent>
                   </Card>
 
-                  <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.24)]">
+                  <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
                     <CardHeader>
                       <div className="flex items-center justify-between gap-3">
                         <CardTitle className="flex items-center gap-2 text-base">
@@ -732,10 +770,10 @@ function MarketAnalysisPage() {
                       {trackedIdeas.length > 0 ? (
                         <div className="space-y-3">
                           {trackedIdeas.map((ticker) => (
-                            <div key={ticker.symbol} className="rounded-[22px] border border-white/10 bg-black/70 px-4 py-3.5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+                            <div key={ticker.symbol} className="rounded-[22px] border border-white/10 bg-slate-950/58 px-4 py-3.5 shadow-[0_22px_50px_-34px_rgba(15,23,42,0.95)]">
                               <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div className="min-w-0">
-                                  <div className="text-[1.9rem] font-semibold leading-none text-white">{ticker.symbol}</div>
+                                  <div className="text-[1.8rem] font-semibold leading-none text-white">{ticker.symbol}</div>
                                   {ticker.name ? <div className="mt-2 text-[11px] uppercase tracking-[0.3em] text-slate-400/58">{ticker.name}</div> : null}
                                 </div>
                                 <div className="flex flex-col items-end gap-3 text-right">
@@ -745,7 +783,7 @@ function MarketAnalysisPage() {
                                     </Badge>
                                   ) : null}
                                   <div>
-                                    <div className="text-3xl font-semibold text-white sm:text-[2.15rem]">
+                                    <div className="text-[2rem] font-semibold text-white sm:text-[2.05rem]">
                                       {formatCurrency(ticker.price, ticker.currency || 'USD')}
                                     </div>
                                     {formatSignedPercent(ticker.changePercent) ? (
@@ -761,19 +799,19 @@ function MarketAnalysisPage() {
                               {ticker.commentary ? (
                                 <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
                                   <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">AI 한줄 판단</div>
-                                  <p className="mt-3 text-sm leading-7 text-slate-100/88">{ticker.commentary}</p>
+                                  <p className="mt-3 break-keep text-[0.94rem] leading-7 text-slate-100/88">{ticker.commentary}</p>
                                 </div>
                               ) : null}
 
                               {ticker.adminNote ? (
                                 <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
                                   <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">관리자 메모</div>
-                                  <p className="mt-3 text-sm leading-7 text-slate-300/74">{ticker.adminNote}</p>
+                                  <p className="mt-3 break-keep text-[0.94rem] leading-7 text-slate-300/78">{ticker.adminNote}</p>
                                 </div>
                               ) : null}
 
                               {!ticker.commentary && ticker.summary ? (
-                                <p className="mt-4 text-sm leading-7 text-slate-300/74">{ticker.summary}</p>
+                                <p className="mt-4 break-keep text-[0.94rem] leading-7 text-slate-300/78">{ticker.summary}</p>
                               ) : null}
 
                               {ticker.news && ticker.news.length > 0 ? (
@@ -787,7 +825,7 @@ function MarketAnalysisPage() {
                                       rel="noreferrer"
                                       className="block rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/20 hover:bg-white/[0.06]"
                                     >
-                                      <div className="text-sm font-medium text-white">{news.title}</div>
+                                      <div className="break-keep text-sm font-medium leading-6 text-white">{news.title}</div>
                                       <div className="mt-2 text-xs text-slate-400/70">
                                         {news.source || '출처 없음'}
                                         {news.publishedAt ? ` · ${formatDateTime(news.publishedAt)}` : ''}
@@ -836,7 +874,7 @@ function MarketAnalysisPage() {
           </section>
 
           <aside className="space-y-4">
-            <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.22)]">
+            <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Clock3 className="h-4 w-4 text-cyan-200" />
@@ -844,22 +882,22 @@ function MarketAnalysisPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 text-sm leading-6 text-slate-300/74">
-                <div className="rounded-2xl border border-white/10 bg-black/70 px-4 py-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
                   <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">최종 반영 시각</div>
                   <div className="mt-2 text-base font-medium text-white">{formatDateTime(latestTimestamp)}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-black/70 px-4 py-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
                   <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">피드 준비 상태</div>
                   <div className="mt-2 text-base font-medium text-white">{latestReport ? '자동 업로드 정상 연결' : '첫 업로드 대기 중'}</div>
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-black/70 px-4 py-3">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
                   <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">리포트 범위</div>
                   <div className="mt-2 text-base font-medium text-white">{latestReport ? `${latestReport.marketScope.toUpperCase()} / ${reports.length}건` : '데이터 없음'}</div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.22)]">
+            <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
               <CardHeader>
                 <CardTitle className="text-base">최근 히스토리</CardTitle>
               </CardHeader>
@@ -877,14 +915,14 @@ function MarketAnalysisPage() {
                             type="button"
                             onClick={() => setDetailDialogState({ kind: 'history', report })}
                             aria-label={`${report.title} 전체 내용 보기`}
-                            className="w-full rounded-2xl border border-white/10 bg-black/70 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/20"
+                            className="w-full rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/20"
                           >
                             <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.24em] text-slate-400/55">
                               <span>{formatDate(report.reportDate)}</span>
                               <span>#{String(index + 2).padStart(2, '0')}</span>
                             </div>
                             <div className="mt-2 text-sm font-medium text-white">{report.title}</div>
-                            <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-300/68">{previewText}</p>
+                            <p className="mt-2 line-clamp-3 break-keep text-[0.94rem] leading-6 text-slate-300/74">{previewText}</p>
                             <div className="mt-4 inline-flex items-center rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-200/72">
                               전체 내용 보기
                             </div>
@@ -893,13 +931,13 @@ function MarketAnalysisPage() {
                       }
 
                       return (
-                        <div key={report.id} className="rounded-2xl border border-white/10 bg-black/70 px-4 py-4">
+                        <div key={report.id} className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-4">
                           <div className="flex items-center justify-between gap-3 text-xs uppercase tracking-[0.24em] text-slate-400/55">
                             <span>{formatDate(report.reportDate)}</span>
                             <span>#{String(index + 2).padStart(2, '0')}</span>
                           </div>
                           <div className="mt-2 text-sm font-medium text-white">{report.title}</div>
-                          <p className="mt-2 text-sm leading-6 text-slate-300/68">{previewText}</p>
+                          <p className="mt-2 break-keep text-[0.94rem] leading-6 text-slate-300/74">{previewText}</p>
                         </div>
                       );
                     })}
@@ -914,7 +952,7 @@ function MarketAnalysisPage() {
 
             {isAdmin ? (
               <div ref={adminPanelRef}>
-              <Card className="border-white/10 bg-[linear-gradient(180deg,#0a0a0a,#151515)] text-slate-100 shadow-[0_24px_60px_rgba(0,0,0,0.28)]">
+              <Card className="bg-slate-950/5 text-slate-100 shadow-[0_26px_70px_-42px_rgba(15,23,42,0.95)]">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-base">
                     <ShieldCheck className="h-4 w-4 text-emerald-200" />
@@ -922,10 +960,10 @@ function MarketAnalysisPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-black/70 px-4 py-3 text-sm leading-6 text-slate-300/78">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3 text-sm leading-6 text-slate-300/78">
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">관리자 확인</div>
                     <div className="mt-2 font-medium text-white">{viewerEmail || '로그인 계정 확인 중'}</div>
-                    <p className="mt-2 text-sm leading-6 text-slate-300/68">관리자 이메일 목록과 일치하는 계정만 상시 watchlist를 추가하거나 삭제할 수 있습니다.</p>
+                    <p className="mt-2 break-keep text-sm leading-6 text-slate-300/74">관리자 이메일 목록과 일치하는 계정만 상시 watchlist를 추가하거나 삭제할 수 있습니다.</p>
                   </div>
 
                   {adminNotice ? (
@@ -1021,7 +1059,7 @@ function MarketAnalysisPage() {
                             <div>
                               <div className="text-sm font-semibold text-white">{item.symbol}</div>
                               {item.name ? <div className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-400/60">{item.name}</div> : null}
-                              {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-300/72">{item.summary}</p> : null}
+                              {item.summary ? <p className="mt-2 break-keep text-sm leading-6 text-slate-300/76">{item.summary}</p> : null}
                             </div>
                             <Button
                               type="button"
@@ -1054,7 +1092,7 @@ function MarketAnalysisPage() {
       <DialogContent
         aria-label={detailDialogState?.kind === 'highlight' ? '핵심 포인트 상세' : '히스토리 상세'}
         aria-describedby={undefined}
-        className="max-w-3xl border border-white/10 bg-[linear-gradient(180deg,#060606,#151515)] px-6 py-6 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:px-7"
+        className="max-w-3xl border border-white/10 bg-slate-950/88 px-6 py-6 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl sm:px-7"
       >
         {detailDialogState?.kind === 'history' ? (
           <>
@@ -1068,7 +1106,7 @@ function MarketAnalysisPage() {
               </div>
             </DialogHeader>
 
-            <div className="rounded-[28px] border border-white/10 bg-black/65 px-5 py-5 text-base leading-8 text-slate-200/82">
+            <div className="rounded-[28px] border border-white/10 bg-slate-950/70 px-5 py-5 break-keep text-[0.98rem] leading-8 text-slate-200/84">
               {detailDialogState.report.summary}
             </div>
           </>
@@ -1081,7 +1119,7 @@ function MarketAnalysisPage() {
               </DialogTitle>
             </DialogHeader>
 
-            <div className="rounded-[28px] border border-white/10 bg-black/65 px-5 py-5 text-base leading-8 text-slate-200/82">
+            <div className="rounded-[28px] border border-white/10 bg-slate-950/70 px-5 py-5 break-keep text-[0.98rem] leading-8 text-slate-200/84">
               {detailDialogState.content}
             </div>
           </>
