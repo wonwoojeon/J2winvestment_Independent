@@ -164,9 +164,13 @@ test.describe('Market Analysis Public Entry', () => {
     await page.getByRole('button', { name: '오늘의 시장분석' }).click();
 
     await expect(page).toHaveURL(/\/market-analysis$/);
-    await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '운영 상태' }).first()).toBeVisible();
-    await expect(page.getByText('상시 추적 종목').first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: mockReports[0].title })).toBeVisible();
+    await expect(page.getByText('GitHub Actions에서 생성한 시장 리포트를 모아 보고')).toHaveCount(0);
+    await expect(page.getByText('운영 상태')).toHaveCount(0);
+    await expect(page.getByText('피드 상태')).toHaveCount(0);
+    await expect(page.getByText('최근 보고일')).toHaveCount(0);
+    await expect(page.getByText('누적 표시')).toHaveCount(0);
     await expect(page.getByText('원문 링크 열기')).toHaveCount(0);
     await expect(page.getByText('데이터 파이프라인')).toHaveCount(0);
   });
@@ -186,7 +190,7 @@ test.describe('Market Analysis Public Entry', () => {
 
     await page.getByRole('button', { name: '오늘의 시장분석' }).click();
     await expect(page).toHaveURL(/\/market-analysis$/);
-    await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: mockReports[0].title })).toBeVisible();
     await expect(page.getByText('2026-03-22 미국 증시 데일리 분석')).toBeVisible();
     await expect(page.getByText('데이터 파이프라인')).toHaveCount(0);
 
@@ -246,13 +250,18 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(detailDialog.getByText('S&P 500은 6500선에서 1.5% 하락하며 지지 테스트를 진행했습니다.')).toBeVisible();
   });
 
-  test('admin session hides login button and exposes quick add CTA when watchlist is empty', async ({ page }) => {
+  test('admin session keeps watchlist manager collapsed until expanded', async ({ page }) => {
     await mockMarketAnalysisFeed(page, mockAdminEmptyWatchlist);
     await page.goto('/market-analysis', { waitUntil: 'networkidle' });
 
     await expect(page.getByRole('button', { name: '관리자 로그인' })).toHaveCount(0);
     await expect(page.getByText('관리자 세션 · admin@example.com')).toBeVisible();
-    await expect(page.getByText('상시 watchlist가 아직 비어 있습니다.')).toBeVisible();
-    await expect(page.getByRole('button', { name: '상시 추적 종목 추가로 이동' })).toBeVisible();
+    const toggle = page.getByRole('button', { name: '추적 종목 관리 펼치기' });
+    await expect(toggle).toBeVisible();
+    await expect(page.getByLabel('종목 코드')).toHaveCount(0);
+
+    await toggle.click();
+    await expect(page.getByLabel('종목 코드')).toBeVisible();
+    await expect(page.getByText('관리자 이메일 목록과 일치하는 계정만 상시 watchlist를 추가하거나 삭제할 수 있습니다.')).toBeVisible();
   });
 });

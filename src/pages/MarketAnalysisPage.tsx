@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowLeft,
   CalendarDays,
-  Clock3,
+  ChevronDown,
   Globe2,
   LineChart,
   LockKeyhole,
@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -103,33 +104,6 @@ const readChangeToneClass = (value?: number) => {
   }
 
   return 'border-white/10 bg-white/5 text-slate-200';
-};
-
-const buildSignalTone = (report: MarketAnalysisReport | null) => {
-  if (!report) {
-    return {
-      label: '데이터 대기',
-      description: '첫 리포트 업로드를 기다리는 중입니다.',
-      accent: 'border-white/15 bg-white/6 text-slate-200'
-    };
-  }
-
-  const watchCount = report.tickers.filter((ticker) => /watch|buy|bull|positive|확대/i.test(ticker.stance || '')).length;
-  const cautionCount = report.highlights.filter((item) => /제한|경계|변동성|리스크|부담/i.test(item)).length;
-
-  if (watchCount >= cautionCount) {
-    return {
-      label: '관심 확장 구간',
-      description: '추적 종목 쪽 시그널이 조금 더 강하게 모여 있습니다.',
-      accent: 'border-emerald-400/25 bg-emerald-400/10 text-emerald-100'
-    };
-  }
-
-  return {
-    label: '방어 집중 구간',
-    description: '핵심 포인트에서 리스크 관리 메시지가 더 우세합니다.',
-    accent: 'border-amber-300/25 bg-amber-300/10 text-amber-100'
-  };
 };
 
 const defaultWatchlistForm = {
@@ -222,6 +196,7 @@ function MarketAnalysisPage() {
   const [submittingWatchlist, setSubmittingWatchlist] = useState(false);
   const [deletingWatchlistId, setDeletingWatchlistId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [detailDialogState, setDetailDialogState] = useState<MarketAnalysisDetailState | null>(null);
   const [liveWatchlistTickers, setLiveWatchlistTickers] = useState<MarketAnalysisTicker[]>([]);
@@ -333,7 +308,6 @@ function MarketAnalysisPage() {
   const olderReports = useMemo(() => reports.slice(1), [reports]);
   const latestHighlights = latestReport?.highlights ?? [];
   const latestTimestamp = latestReport?.updatedAt || latestReport?.createdAt || null;
-  const signalTone = buildSignalTone(latestReport);
   const watchlistSummary = useMemo(() => readWatchlistSummary(latestReport, watchlistItems), [latestReport, watchlistItems]);
   const baseTrackedIdeas = useMemo(() => readWatchlistBaseTickers(latestReport, watchlistItems), [latestReport, watchlistItems]);
   const trackedIdeas = useMemo(
@@ -507,37 +481,12 @@ function MarketAnalysisPage() {
   };
 
   const handleAdminWatchlistShortcut = () => {
+    setAdminPanelOpen(true);
     adminPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     window.setTimeout(() => {
       watchlistSymbolInputRef.current?.focus();
     }, 180);
   };
-
-  const topStats = useMemo(
-    () => [
-      {
-        label: '피드 상태',
-        value: latestReport ? 'LIVE' : 'STANDBY',
-        detail: latestReport ? '자동 업로드 연결됨' : '첫 업로드 대기'
-      },
-      {
-        label: '최근 보고일',
-        value: latestReport ? formatDate(latestReport.reportDate) : '대기 중',
-        detail: latestReport ? `${latestReport.marketScope.toUpperCase()} 시장` : '데이터 없음'
-      },
-      {
-        label: '추적 종목',
-        value: watchlistSummary.countLabel,
-        detail: watchlistSummary.detail
-      },
-      {
-        label: '누적 표시',
-        value: `${reports.length}건`,
-        detail: reports.length > 1 ? '히스토리 축적 중' : '첫 기록 단계'
-      }
-    ],
-    [latestReport, reports.length, watchlistSummary]
-  );
 
   return (
     <Dialog open={Boolean(detailDialogState)} onOpenChange={(open) => !open && setDetailDialogState(null)}>
@@ -584,60 +533,7 @@ function MarketAnalysisPage() {
               </Button>
           </div>
         </div>
-
-        <section className="glass-panel relative overflow-hidden rounded-[34px] bg-slate-950/45 p-6 shadow-[0_35px_90px_-45px_rgba(15,23,42,0.95)] sm:p-8">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(140deg,rgba(255,255,255,0.05),transparent_34%,rgba(255,255,255,0.02))]" />
-          <div className="pointer-events-none absolute -right-16 top-10 h-40 w-40 rounded-full bg-white/5 blur-3xl" />
-
-          <div className="relative grid gap-6 xl:grid-cols-[minmax(0,1.08fr)_minmax(300px,0.92fr)]">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.28em] text-slate-200/80">
-                <Radar className="h-3.5 w-3.5" />
-                Market Signal Feed
-              </div>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h1 className="break-keep text-3xl font-bold font-display leading-[0.98] sm:text-[3.45rem]">오늘의 시장분석</h1>
-                  <p className="mt-4 max-w-3xl break-keep text-[0.96rem] leading-7 text-slate-200/78 sm:text-[1rem] sm:leading-8">
-                    GitHub Actions에서 생성한 시장 리포트를 모아 보고, 핵심 시그널과 추적 종목을 한 화면에서 읽기 좋게 정리합니다.
-                    기록형 일지와 실전 판단 사이를 자연스럽게 이어주는 공개 피드입니다.
-                  </p>
-                </div>
-                <Badge variant="outline" className="border-white/10 bg-white/5 px-3 py-1 text-slate-100">
-                  공개 피드
-                </Badge>
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                <Badge variant="outline" className={signalTone.accent}>
-                  {signalTone.label}
-                </Badge>
-                <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                  상시 추적 종목
-                </Badge>
-                <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                  {latestReport ? `${latestReport.sourceName}` : 'daily_stock_analysis 연동 대기'}
-                </Badge>
-                <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                  마지막 갱신 {formatDateTime(latestTimestamp)}
-                </Badge>
-              </div>
-              <p className="mt-3 break-keep text-sm leading-6 text-slate-300/74">{signalTone.description}</p>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              {topStats.map((stat) => (
-                <div key={stat.label} className="rounded-[24px] border border-white/10 bg-slate-950/55 px-4 py-4 shadow-[0_20px_50px_-36px_rgba(15,23,42,0.95)] backdrop-blur-xl">
-                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-400/68">{stat.label}</div>
-                  <div className="mt-3 text-lg font-semibold text-white sm:text-xl">{stat.value}</div>
-                  <p className="mt-2 break-keep text-sm leading-6 text-slate-300/72">{stat.detail}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.18fr)_minmax(320px,0.82fr)]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)]">
           <section className="space-y-4">
             {loading ? (
               <div className="rounded-[28px] border border-white/10 bg-white/5 px-5 py-12 text-center text-slate-300/70">
@@ -657,23 +553,10 @@ function MarketAnalysisPage() {
                       <span>{latestReport.sourceName}</span>
                     </div>
                     <div className="mt-6 max-w-4xl">
-                      <div className="text-xs font-semibold uppercase tracking-[0.34em] text-slate-400/70">핵심 판단</div>
                       <h2 className="mt-4 break-keep text-[2rem] font-semibold leading-[1.08] text-white sm:text-[2.6rem] xl:text-[3rem]">{latestReport.title}</h2>
                       <p className="mt-6 whitespace-pre-line break-keep text-[0.98rem] leading-8 text-slate-200/84 sm:text-[1.03rem] sm:leading-[2rem]">
                         {latestReport.summary}
                       </p>
-                    </div>
-
-                    <div className="mt-8 flex flex-wrap gap-2">
-                      <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-100">
-                        핵심 포인트 {latestHighlights.length}개
-                      </Badge>
-                      <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                        추적 종목 {watchlistSummary.countLabel}
-                      </Badge>
-                      <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                        {watchlistSummary.detail}
-                      </Badge>
                     </div>
                 </div>
 
@@ -874,28 +757,6 @@ function MarketAnalysisPage() {
           </section>
 
           <aside className="space-y-4">
-            <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Clock3 className="h-4 w-4 text-cyan-200" />
-                  운영 상태
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm leading-6 text-slate-300/74">
-                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">최종 반영 시각</div>
-                  <div className="mt-2 text-base font-medium text-white">{formatDateTime(latestTimestamp)}</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">피드 준비 상태</div>
-                  <div className="mt-2 text-base font-medium text-white">{latestReport ? '자동 업로드 정상 연결' : '첫 업로드 대기 중'}</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">리포트 범위</div>
-                  <div className="mt-2 text-base font-medium text-white">{latestReport ? `${latestReport.marketScope.toUpperCase()} / ${reports.length}건` : '데이터 없음'}</div>
-                </div>
-              </CardContent>
-            </Card>
 
             <Card className="bg-slate-950/46 text-slate-100 shadow-[0_24px_65px_-38px_rgba(15,23,42,0.95)]">
               <CardHeader>
@@ -952,13 +813,27 @@ function MarketAnalysisPage() {
 
             {isAdmin ? (
               <div ref={adminPanelRef}>
+              <Collapsible open={adminPanelOpen} onOpenChange={setAdminPanelOpen}>
               <Card className="bg-slate-950/5 text-slate-100 shadow-[0_26px_70px_-42px_rgba(15,23,42,0.95)]">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <ShieldCheck className="h-4 w-4 text-emerald-200" />
-                    추적 종목 관리
-                  </CardTitle>
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      aria-label={adminPanelOpen ? '추적 종목 관리 접기' : '추적 종목 관리 펼치기'}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                        추적 종목 관리
+                      </CardTitle>
+                      <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                        {adminPanelOpen ? '접기' : '펼치기'}
+                        <ChevronDown className={`h-4 w-4 transition ${adminPanelOpen ? 'rotate-180' : ''}`} />
+                      </span>
+                    </button>
+                  </CollapsibleTrigger>
                 </CardHeader>
+                <CollapsibleContent>
                 <CardContent className="space-y-4">
                   <div className="rounded-2xl border border-white/10 bg-slate-950/58 px-4 py-3 text-sm leading-6 text-slate-300/78">
                     <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">관리자 확인</div>
@@ -1081,7 +956,9 @@ function MarketAnalysisPage() {
                     )}
                   </div>
                 </CardContent>
+                </CollapsibleContent>
               </Card>
+              </Collapsible>
               </div>
             ) : null}
           </aside>
