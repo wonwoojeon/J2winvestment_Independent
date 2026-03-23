@@ -41,6 +41,18 @@ const marketAnalysisPayloadSchema = z.object({
 export type NormalizedMarketAnalysisPayload = z.infer<typeof marketAnalysisPayloadSchema>;
 
 const dedupeStrings = (items: string[]) => [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+const normalizeWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+const isRenderableHighlight = (value: string) => {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return false;
+  if (/^[|:\-\s]+$/.test(normalized)) return false;
+  if ((normalized.match(/\|/g)?.length ?? 0) >= 2) return false;
+  return (normalized.match(/[A-Za-z0-9가-힣]/g)?.length ?? 0) >= 4;
+};
+
+export const sanitizeMarketAnalysisHighlights = (items: string[]) =>
+  dedupeStrings(items.map(normalizeWhitespace).filter(isRenderableHighlight));
 
 const normalizeTickers = (tickers: MarketAnalysisTicker[]) =>
   tickers
@@ -73,7 +85,7 @@ export const normalizeMarketAnalysisPayload = (payload: unknown): NormalizedMark
 
   return {
     ...parsed,
-    highlights: dedupeStrings(parsed.highlights),
+    highlights: sanitizeMarketAnalysisHighlights(parsed.highlights),
     tickers: normalizeTickers(parsed.tickers)
   };
 };
@@ -101,7 +113,7 @@ export const mapMarketAnalysisReport = (row: MarketAnalysisReportRow): MarketAna
   marketScope: row.market_scope,
   title: row.title,
   summary: row.summary,
-  highlights: Array.isArray(row.highlights) ? row.highlights : [],
+  highlights: sanitizeMarketAnalysisHighlights(Array.isArray(row.highlights) ? row.highlights : []),
   tickers: Array.isArray(row.tickers) ? row.tickers : [],
   sourceName: row.source_name,
   sourceUrl: row.source_url,

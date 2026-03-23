@@ -162,6 +162,10 @@ type MarketAnalysisFixtureWindow = Window & {
   __MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__?: MarketAnalysisWatchlistLiveResponse;
 };
 
+type MarketAnalysisDetailState =
+  | { kind: 'history'; report: MarketAnalysisReport }
+  | { kind: 'highlight'; index: number; content: string };
+
 const readErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
   return '요청을 처리하지 못했습니다.';
@@ -182,7 +186,7 @@ function MarketAnalysisPage() {
   const [deletingWatchlistId, setDeletingWatchlistId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [reloadVersion, setReloadVersion] = useState(0);
-  const [expandedHistoryReport, setExpandedHistoryReport] = useState<MarketAnalysisReport | null>(null);
+  const [detailDialogState, setDetailDialogState] = useState<MarketAnalysisDetailState | null>(null);
   const [liveWatchlistTickers, setLiveWatchlistTickers] = useState<MarketAnalysisTicker[]>([]);
   const [liveRefreshLoading, setLiveRefreshLoading] = useState(false);
   const [liveRefreshError, setLiveRefreshError] = useState<string | null>(null);
@@ -290,6 +294,7 @@ function MarketAnalysisPage() {
 
   const latestReport = reports[0] ?? null;
   const olderReports = useMemo(() => reports.slice(1), [reports]);
+  const latestHighlights = latestReport?.highlights ?? [];
   const latestTimestamp = latestReport?.updatedAt || latestReport?.createdAt || null;
   const signalTone = buildSignalTone(latestReport);
   const watchlistSummary = useMemo(() => readWatchlistSummary(latestReport, watchlistItems), [latestReport, watchlistItems]);
@@ -498,7 +503,7 @@ function MarketAnalysisPage() {
   );
 
   return (
-    <Dialog open={Boolean(expandedHistoryReport)} onOpenChange={(open) => !open && setExpandedHistoryReport(null)}>
+    <Dialog open={Boolean(detailDialogState)} onOpenChange={(open) => !open && setDetailDialogState(null)}>
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.06),transparent_24%),linear-gradient(180deg,#010101_0%,#050505_42%,#0a0a0a_100%)] text-slate-100">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -623,7 +628,7 @@ function MarketAnalysisPage() {
 
                     <div className="mt-8 flex flex-wrap gap-2">
                       <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-100">
-                        핵심 포인트 {latestReport.highlights.length}개
+                        핵심 포인트 {latestHighlights.length}개
                       </Badge>
                       <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
                         추적 종목 {watchlistSummary.countLabel}
@@ -643,13 +648,24 @@ function MarketAnalysisPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {latestReport.highlights.length > 0 ? (
+                      {latestHighlights.length > 0 ? (
                         <div className="grid gap-3 md:grid-cols-2">
-                          {latestReport.highlights.map((highlight, index) => (
-                            <div key={highlight} className="rounded-[22px] border border-white/10 bg-black/70 px-4 py-4">
+                          {latestHighlights.map((highlight, index) => (
+                            <button
+                              key={`${index}-${highlight}`}
+                              type="button"
+                              aria-label={`핵심 포인트 ${index + 1} 상세 보기`}
+                              onClick={() => setDetailDialogState({ kind: 'highlight', index, content: highlight })}
+                              className="flex min-h-[220px] h-full flex-col rounded-[22px] border border-white/10 bg-black/70 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-white/20"
+                            >
                               <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/58">Point {String(index + 1).padStart(2, '0')}</div>
-                              <p className="mt-3 text-sm leading-7 text-slate-200/78">{highlight}</p>
-                            </div>
+                              <p className="mt-3 line-clamp-6 text-sm leading-7 text-slate-200/78">{highlight}</p>
+                              <div className="mt-auto pt-4">
+                                <span className="inline-flex items-center rounded-full border border-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.24em] text-slate-200/72">
+                                  전체 보기
+                                </span>
+                              </div>
+                            </button>
                           ))}
                         </div>
                       ) : (
@@ -889,7 +905,7 @@ function MarketAnalysisPage() {
                           <button
                             key={report.id}
                             type="button"
-                            onClick={() => setExpandedHistoryReport(report)}
+                            onClick={() => setDetailDialogState({ kind: 'history', report })}
                             aria-label={`${report.title} 전체 내용 보기`}
                             className="w-full rounded-2xl border border-white/10 bg-black/70 px-4 py-4 text-left transition hover:border-white/20 hover:bg-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/20"
                           >
@@ -1066,24 +1082,37 @@ function MarketAnalysisPage() {
       </div>
 
       <DialogContent
-        aria-label="히스토리 상세"
+        aria-label={detailDialogState?.kind === 'highlight' ? '핵심 포인트 상세' : '히스토리 상세'}
         aria-describedby={undefined}
         className="max-w-3xl border border-white/10 bg-[linear-gradient(180deg,#060606,#151515)] px-6 py-6 text-slate-100 shadow-[0_30px_90px_rgba(0,0,0,0.5)] sm:px-7"
       >
-        {expandedHistoryReport ? (
+        {detailDialogState?.kind === 'history' ? (
           <>
             <DialogHeader className="space-y-3 text-left">
               <div className="text-xs uppercase tracking-[0.32em] text-slate-400/70">히스토리 상세</div>
               <DialogTitle className="text-2xl font-semibold leading-tight text-white">
-                {expandedHistoryReport.title}
+                {detailDialogState.report.title}
               </DialogTitle>
               <div className="text-sm text-slate-400">
-                {formatDate(expandedHistoryReport.reportDate)} · {expandedHistoryReport.marketScope.toUpperCase()} 시장
+                {formatDate(detailDialogState.report.reportDate)} · {detailDialogState.report.marketScope.toUpperCase()} 시장
               </div>
             </DialogHeader>
 
             <div className="rounded-[28px] border border-white/10 bg-black/65 px-5 py-5 text-base leading-8 text-slate-200/82">
-              {expandedHistoryReport.summary}
+              {detailDialogState.report.summary}
+            </div>
+          </>
+        ) : detailDialogState?.kind === 'highlight' ? (
+          <>
+            <DialogHeader className="space-y-3 text-left">
+              <div className="text-xs uppercase tracking-[0.32em] text-slate-400/70">핵심 포인트 상세</div>
+              <DialogTitle className="text-2xl font-semibold leading-tight text-white">
+                Point {String(detailDialogState.index + 1).padStart(2, '0')}
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="rounded-[28px] border border-white/10 bg-black/65 px-5 py-5 text-base leading-8 text-slate-200/82">
+              {detailDialogState.content}
             </div>
           </>
         ) : null}

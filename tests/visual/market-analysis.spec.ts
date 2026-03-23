@@ -98,21 +98,60 @@ const mockAdminEmptyWatchlist = {
   }
 };
 
+
+const mockWatchlistLive = {
+  ok: true,
+  cached: false,
+  refreshedAt: '2026-03-23T01:47:00.000Z',
+  items: [
+    {
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      stance: '관심',
+      price: 910.12,
+      change: -18.45,
+      changePercent: -1.99,
+      currency: 'USD',
+      sessionLabel: '최근 종가',
+      commentary: '반등 추격보다 900달러 지지 여부를 먼저 확인하는 편이 낫습니다.',
+      refreshedAt: '2026-03-23T01:47:00.000Z',
+      news: [
+        {
+          title: 'NVIDIA keeps AI demand in focus',
+          url: 'https://example.com/nvda-ai-demand',
+          source: 'Yahoo Finance',
+          publishedAt: '2026-03-23T01:20:00.000Z'
+        }
+      ]
+    }
+  ]
+};
+
 const mockMarketAnalysisFeed = async (
   page: Page,
-  watchlist: typeof mockWatchlist | typeof mockAdminEmptyWatchlist = mockWatchlist
+  watchlist: typeof mockWatchlist | typeof mockAdminEmptyWatchlist = mockWatchlist,
+  options?: {
+    reports?: typeof mockReports;
+    live?: typeof mockWatchlistLive;
+  }
 ) => {
   await page.addInitScript(
-    ({ reports, watchlistData }) => {
+    ({ reports, watchlistData, liveData }) => {
       const testWindow = window as Window & {
         __MARKET_ANALYSIS_TEST_ROWS__?: unknown;
         __MARKET_ANALYSIS_TEST_WATCHLIST__?: unknown;
+        __MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__?: unknown;
       };
 
       testWindow.__MARKET_ANALYSIS_TEST_ROWS__ = reports;
       testWindow.__MARKET_ANALYSIS_TEST_WATCHLIST__ = watchlistData;
+      testWindow.__MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__ = liveData;
     },
-    { reports: mockReports, watchlistData: watchlist }
+    {
+      reports: options?.reports || mockReports,
+      watchlistData: watchlist,
+      liveData: options?.live,
+    }
   );
 };
 
@@ -153,7 +192,7 @@ test.describe('Market Analysis Public Entry', () => {
   });
 
   test('market analysis renders enriched watchlist card with price, commentary, news and refresh CTA', async ({ page }) => {
-    await mockMarketAnalysisFeed(page);
+    await mockMarketAnalysisFeed(page, mockWatchlist, { live: mockWatchlistLive });
     await page.goto('/market-analysis', { waitUntil: 'networkidle' });
 
     await expect(page.getByText('오늘 볼 종목')).toBeVisible();
@@ -163,6 +202,36 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(page.getByText('반등 추격보다 900달러 지지 여부를 먼저 확인하는 편이 낫습니다.')).toBeVisible();
     await expect(page.getByText('NVIDIA keeps AI demand in focus')).toBeVisible();
     await expect(page.getByRole('button', { name: '새로고침', exact: true })).toBeVisible();
+  });
+
+
+
+  test('market analysis renders compact highlight cards and opens detail dialog', async ({ page }) => {
+    await mockMarketAnalysisFeed(page, mockWatchlist, {
+      reports: [
+        {
+          ...mockReports[0],
+          highlights: [
+            'S&P 500은 6500선에서 1.5% 하락하며 지지 테스트를 진행했습니다. 나스닥은 2%대 조정으로 변동성이 더 크게 반응했습니다.',
+            '| 지수 | 현재가 | 등락률 | 거래대금 |',
+            '|------|------|------|------|',
+          ],
+        },
+        ...mockReports.slice(1),
+      ],
+    });
+    await page.goto('/market-analysis', { waitUntil: 'networkidle' });
+
+    const highlightCard = page.getByRole('button', { name: '핵심 포인트 1 상세 보기' });
+    await expect(highlightCard).toBeVisible();
+    await expect(page.getByText('POINT 02')).toHaveCount(0);
+    await expect(highlightCard.locator('p').first()).toHaveClass(/line-clamp-6/);
+
+    await highlightCard.click();
+    const detailDialog = page.getByRole('dialog');
+    await expect(detailDialog).toBeVisible();
+    await expect(detailDialog.getByText('핵심 포인트 상세')).toBeVisible();
+    await expect(detailDialog.getByText('S&P 500은 6500선에서 1.5% 하락하며 지지 테스트를 진행했습니다.')).toBeVisible();
   });
 
   test('admin session hides login button and exposes quick add CTA when watchlist is empty', async ({ page }) => {

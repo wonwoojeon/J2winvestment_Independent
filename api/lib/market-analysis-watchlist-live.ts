@@ -16,6 +16,15 @@ export type MarketAnalysisWatchlistLiveCacheRow = {
   updated_at?: string;
 };
 
+type StooqDailyRow = {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+};
+
 export const buildWatchlistLiveCacheRow = (
   items: MarketAnalysisTicker[],
   fetchedAt = new Date(),
@@ -58,7 +67,7 @@ const overlayLiveTicker = (
     currency: liveTicker.currency ?? baseTicker.currency,
     sessionLabel: liveTicker.sessionLabel ?? baseTicker.sessionLabel,
     refreshedAt: liveTicker.refreshedAt ?? baseTicker.refreshedAt,
-    news: (liveTicker.news && liveTicker.news.length > 0) ? liveTicker.news : baseTicker.news,
+    news: liveTicker.news && liveTicker.news.length > 0 ? liveTicker.news : baseTicker.news,
   };
 };
 
@@ -73,14 +82,14 @@ export const mergeWatchlistLiveSnapshots = (
   );
 };
 
-const YAHOO_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36';
 
 const yahooRequest = async (url: string) => {
   const response = await fetch(url, {
     headers: {
-      'User-Agent': YAHOO_USER_AGENT,
-      Accept: 'application/json'
-    }
+      'User-Agent': USER_AGENT,
+      Accept: 'application/json',
+    },
   });
 
   if (!response.ok) {
@@ -90,13 +99,100 @@ const yahooRequest = async (url: string) => {
   return response.json() as Promise<any>;
 };
 
+const stooqRequest = async (url: string) => {
+  const response = await fetch(url, {
+    headers: {
+      'User-Agent': USER_AGENT,
+      Accept: 'text/csv,text/plain;q=0.9,*/*;q=0.8',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Stooq request failed with status ${response.status}`);
+  }
+
+  return response.text();
+};
+
 const roundValue = (value: number | undefined) => {
   if (typeof value !== 'number' || Number.isNaN(value)) return undefined;
   return Math.round(value * 100) / 100;
 };
 
+const parseMaybeNumber = (value: string | undefined) => {
+  if (!value) return undefined;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const normalizeSymbolForStooq = (symbol: string) => {
+  const normalized = symbol.trim().toLowerCase();
+  if (!normalized) return normalized;
+  return normalized.includes('.') ? normalized : `${normalized}.us`;
+};
+
+export const parseStooqHistoryCsv = (csv: string): StooqDailyRow[] =>
+  csv
+    .split(/\r?\n/)
+    .slice(1)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [date, open, high, low, close, volume] = line.split(',');
+      const parsedOpen = parseMaybeNumber(open);
+      const parsedHigh = parseMaybeNumber(high);
+      const parsedLow = parseMaybeNumber(low);
+      const parsedClose = parseMaybeNumber(close);
+      const parsedVolume = parseMaybeNumber(volume);
+
+      if (!date || parsedOpen === undefined || parsedHigh === undefined || parsedLow === undefined || parsedClose === undefined || parsedVolume === undefined) {
+        return null;
+      }
+
+      return {
+        date,
+        open: parsedOpen,
+        high: parsedHigh,
+        low: parsedLow,
+        close: parsedClose,
+        volume: parsedVolume,
+      } satisfies StooqDailyRow;
+    })
+    .filter((row): row is StooqDailyRow => Boolean(row));
+
+export const fetchStooqQuoteSnapshot = async (symbol: string) => {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const payload = await stooqRequest(
+    `https://stooq.com/q/d/l/?s=${encodeURIComponent(normalizeSymbolForStooq(symbol))}&i=d`,
+  );
+
+  const rows = parseStooqHistoryCsv(payload);
+  const lastRow = rows.at(-1);
+  if (!lastRow) {
+    throw new Error(`Stooq history unavailable for ${normalizedSymbol}`);
+  }
+
+  const previousClose = rows.at(-2)?.close ?? lastRow.open;
+  const change = typeof previousClose === 'number' ? lastRow.close - previousClose : undefined;
+  const changePercent = typeof change === 'number' && previousClose !== 0
+    ? (change / previousClose) * 100
+    : undefined;
+
+  return {
+    symbol: normalizedSymbol,
+    name: normalizedSymbol,
+    price: roundValue(lastRow.close),
+    change: roundValue(change),
+    changePercent: roundValue(changePercent),
+    currency: 'USD',
+    sessionLabel: '최근 종가',
+    refreshedAt: new Date().toISOString(),
+  } satisfies MarketAnalysisTicker;
+};
+
 export const fetchYahooQuoteSnapshot = async (symbol: string) => {
-  const encodedSymbol = encodeURIComponent(symbol.trim().toUpperCase());
+  const normalizedSymbol = symbol.trim().toUpperCase();
+  const encodedSymbol = encodeURIComponent(normalizedSymbol);
   const payload = await yahooRequest(
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?interval=1d&range=5d`,
   );
@@ -113,8 +209,8 @@ export const fetchYahooQuoteSnapshot = async (symbol: string) => {
     : undefined;
 
   return {
-    symbol: encodedSymbol,
-    name: meta.longName || meta.shortName || symbol.trim().toUpperCase(),
+    symbol: normalizedSymbol,
+    name: meta.longName || meta.shortName || normalizedSymbol,
     price: roundValue(price),
     change: roundValue(change),
     changePercent: roundValue(changePercent),
@@ -142,7 +238,7 @@ export const fetchYahooNews = async (symbol: string) => {
 };
 
 export const buildWatchlistLiveTicker = async (item: MarketAnalysisWatchlistItem) => {
-  const quote = await fetchYahooQuoteSnapshot(item.symbol);
+  const quote = await fetchYahooQuoteSnapshot(item.symbol).catch(() => fetchStooqQuoteSnapshot(item.symbol));
   const news = await fetchYahooNews(item.symbol).catch(() => []);
 
   return {

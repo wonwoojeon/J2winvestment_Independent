@@ -60,6 +60,18 @@ type ResponseLike = {
 };
 
 const dedupeStrings = (items: string[]) => [...new Set(items.map((item) => item.trim()).filter(Boolean))];
+const normalizeWhitespace = (value: string) => value.replace(/\s+/g, ' ').trim();
+
+const isRenderableHighlight = (value: string) => {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) return false;
+  if (/^[|:\-\s]+$/.test(normalized)) return false;
+  if ((normalized.match(/\|/g)?.length ?? 0) >= 2) return false;
+  return (normalized.match(/[A-Za-z0-9가-힣]/g)?.length ?? 0) >= 4;
+};
+
+const sanitizeMarketAnalysisHighlights = (items: string[]) =>
+  dedupeStrings(items.map(normalizeWhitespace).filter(isRenderableHighlight));
 
 const normalizeTickers = (tickers: Array<z.infer<typeof marketAnalysisTickerSchema>>) =>
   tickers
@@ -92,7 +104,7 @@ const normalizeMarketAnalysisPayload = (payload: unknown) => {
 
   return {
     ...parsed,
-    highlights: dedupeStrings(parsed.highlights),
+    highlights: sanitizeMarketAnalysisHighlights(parsed.highlights),
     tickers: normalizeTickers(parsed.tickers)
   };
 };
