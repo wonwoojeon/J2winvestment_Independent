@@ -676,16 +676,11 @@ function MarketAnalysisPage() {
 
                   <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.24)]">
                     <CardHeader>
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <CardTitle className="flex items-center gap-2 text-base">
-                            <Radar className="h-4 w-4 text-emerald-200" />
-                            오늘 볼 종목
-                          </CardTitle>
-                          <p className="mt-2 text-sm leading-6 text-slate-300/62">
-                            상시 watchlist를 기준으로 시세, 변동률, 관리자 메모, AI 코멘트를 한 카드에서 바로 확인합니다.
-                          </p>
-                        </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Radar className="h-4 w-4 text-emerald-200" />
+                          오늘 볼 종목
+                        </CardTitle>
                         <div className="flex items-center gap-2">
                           {watchlistSummary.usesPersistentWatchlist ? (
                             <Button
@@ -693,7 +688,8 @@ function MarketAnalysisPage() {
                               variant="outline"
                               className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
                               onClick={handleLiveWatchlistRefresh}
-                              disabled={liveRefreshLoading}
+                              disabled={liveRefreshLoading || watchlistLoading}
+                              title={liveRefreshMeta?.refreshedAt ? `최근 갱신 ${formatDateTime(liveRefreshMeta.refreshedAt)}` : undefined}
                             >
                               <RefreshCcw className={`mr-2 h-4 w-4 ${liveRefreshLoading ? 'animate-spin' : ''}`} />
                               새로고침
@@ -715,27 +711,6 @@ function MarketAnalysisPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="mb-4 flex flex-wrap gap-2">
-                        <Badge variant="outline" className="border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
-                          {watchlistSummary.usesPersistentWatchlist ? '관리자 watchlist 우선' : '리포트 추적 종목 대체'}
-                        </Badge>
-                        {watchlistSummary.usesPersistentWatchlist ? (
-                          <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                            5분 캐시 시세
-                          </Badge>
-                        ) : null}
-                        {liveRefreshMeta ? (
-                          <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
-                            {liveRefreshMeta.cached ? '캐시 반영' : '방금 갱신'} · {formatDateTime(liveRefreshMeta.refreshedAt)}
-                          </Badge>
-                        ) : null}
-                        {watchlistLoading ? (
-                          <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
-                            watchlist 동기화 중
-                          </Badge>
-                        ) : null}
-                      </div>
-
                       {watchlistError ? (
                         <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100/88">
                           상시 watchlist를 불러오지 못해 현재는 오늘 리포트 기준으로 표시합니다.
@@ -757,25 +732,20 @@ function MarketAnalysisPage() {
                       {trackedIdeas.length > 0 ? (
                         <div className="space-y-3">
                           {trackedIdeas.map((ticker) => (
-                            <div key={ticker.symbol} className="rounded-[24px] border border-white/10 bg-black/70 px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+                            <div key={ticker.symbol} className="rounded-[22px] border border-white/10 bg-black/70 px-4 py-3.5 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
                               <div className="flex flex-wrap items-start justify-between gap-4">
-                                <div>
-                                  <div className="text-lg font-semibold text-white">{ticker.symbol}</div>
-                                  {ticker.name ? <div className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400/58">{ticker.name}</div> : null}
-                                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">
-                                    <span>{watchlistSummary.usesPersistentWatchlist ? '관리자 watchlist' : '오늘 리포트'}</span>
-                                    {ticker.sessionLabel ? <span>{ticker.sessionLabel}</span> : null}
-                                    {ticker.refreshedAt ? <span>{formatDateTime(ticker.refreshedAt)}</span> : null}
-                                  </div>
+                                <div className="min-w-0">
+                                  <div className="text-[1.9rem] font-semibold leading-none text-white">{ticker.symbol}</div>
+                                  {ticker.name ? <div className="mt-2 text-[11px] uppercase tracking-[0.3em] text-slate-400/58">{ticker.name}</div> : null}
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
+                                <div className="flex flex-col items-end gap-3 text-right">
                                   {ticker.stance ? (
                                     <Badge variant="outline" className="border-cyan-300/30 bg-cyan-400/10 text-cyan-100">
                                       {ticker.stance}
                                     </Badge>
                                   ) : null}
-                                  <div className="text-right">
-                                    <div className="text-xl font-semibold text-white sm:text-2xl">
+                                  <div>
+                                    <div className="text-3xl font-semibold text-white sm:text-[2.15rem]">
                                       {formatCurrency(ticker.price, ticker.currency || 'USD')}
                                     </div>
                                     {formatSignedPercent(ticker.changePercent) ? (
@@ -789,14 +759,14 @@ function MarketAnalysisPage() {
                               </div>
 
                               {ticker.commentary ? (
-                                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-4">
+                                <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
                                   <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">AI 한줄 판단</div>
                                   <p className="mt-3 text-sm leading-7 text-slate-100/88">{ticker.commentary}</p>
                                 </div>
                               ) : null}
 
                               {ticker.adminNote ? (
-                                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-4">
+                                <div className="mt-3 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-3">
                                   <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">관리자 메모</div>
                                   <p className="mt-3 text-sm leading-7 text-slate-300/74">{ticker.adminNote}</p>
                                 </div>
@@ -807,7 +777,7 @@ function MarketAnalysisPage() {
                               ) : null}
 
                               {ticker.news && ticker.news.length > 0 ? (
-                                <div className="mt-4 space-y-2">
+                                <div className="mt-3 space-y-2">
                                   <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">관련 뉴스</div>
                                   {ticker.news.slice(0, 2).map((news) => (
                                     <a
@@ -815,7 +785,7 @@ function MarketAnalysisPage() {
                                       href={news.url}
                                       target="_blank"
                                       rel="noreferrer"
-                                      className="block rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/20 hover:bg-white/[0.06]"
+                                      className="block rounded-[16px] border border-white/10 bg-white/[0.03] px-3 py-3 transition hover:border-white/20 hover:bg-white/[0.06]"
                                     >
                                       <div className="text-sm font-medium text-white">{news.title}</div>
                                       <div className="mt-2 text-xs text-slate-400/70">

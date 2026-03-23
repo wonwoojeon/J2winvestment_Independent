@@ -69,7 +69,7 @@ export const readWatchlistSummary = (
   if (watchlistItems.length > 0) {
     return {
       countLabel: `${watchlistItems.length}개`,
-      detail: '관리자 watchlist 기준',
+      detail: '상시 추적 기준',
       usesPersistentWatchlist: true,
     };
   }
