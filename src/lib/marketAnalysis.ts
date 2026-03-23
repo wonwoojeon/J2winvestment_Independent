@@ -3,11 +3,27 @@ import type { MarketAnalysisPayload, MarketAnalysisReport, MarketAnalysisReportR
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
+const marketAnalysisTickerNewsSchema = z.object({
+  title: z.string().trim().min(1),
+  url: z.string().trim().url(),
+  source: z.string().trim().min(1).optional(),
+  publishedAt: z.string().trim().min(1).optional()
+});
+
 const marketAnalysisTickerSchema = z.object({
   symbol: z.string().trim().min(1),
   name: z.string().trim().min(1).optional(),
   stance: z.string().trim().min(1).optional(),
-  summary: z.string().trim().min(1).optional()
+  summary: z.string().trim().min(1).optional(),
+  adminNote: z.string().trim().min(1).optional(),
+  price: z.number().finite().optional(),
+  change: z.number().finite().optional(),
+  changePercent: z.number().finite().optional(),
+  currency: z.string().trim().min(1).optional(),
+  sessionLabel: z.string().trim().min(1).optional(),
+  commentary: z.string().trim().min(1).optional(),
+  refreshedAt: z.string().trim().min(1).optional(),
+  news: z.array(marketAnalysisTickerNewsSchema).optional().default([])
 });
 
 const marketAnalysisPayloadSchema = z.object({
@@ -32,7 +48,23 @@ const normalizeTickers = (tickers: MarketAnalysisTicker[]) =>
       symbol: ticker.symbol.trim().toUpperCase(),
       name: ticker.name?.trim() || undefined,
       stance: ticker.stance?.trim() || undefined,
-      summary: ticker.summary?.trim() || undefined
+      summary: ticker.summary?.trim() || undefined,
+      adminNote: ticker.adminNote?.trim() || undefined,
+      price: typeof ticker.price === 'number' ? ticker.price : undefined,
+      change: typeof ticker.change === 'number' ? ticker.change : undefined,
+      changePercent: typeof ticker.changePercent === 'number' ? ticker.changePercent : undefined,
+      currency: ticker.currency?.trim() || undefined,
+      sessionLabel: ticker.sessionLabel?.trim() || undefined,
+      commentary: ticker.commentary?.trim() || undefined,
+      refreshedAt: ticker.refreshedAt?.trim() || undefined,
+      news: (ticker.news || [])
+        .map((item) => ({
+          title: item.title.trim(),
+          url: item.url.trim(),
+          source: item.source?.trim() || undefined,
+          publishedAt: item.publishedAt?.trim() || undefined
+        }))
+        .filter((item) => item.title.length > 0 && item.url.length > 0)
     }))
     .filter((ticker) => ticker.symbol.length > 0);
 

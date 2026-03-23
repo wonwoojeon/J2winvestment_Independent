@@ -8,7 +8,28 @@ const mockReports = [
     title: '2026-03-23 미국 증시 데일리 분석',
     summary: '대형 기술주가 변동성을 키웠지만, 핵심은 지금이 추격보다 눌림 체크 구간이라는 점입니다.',
     highlights: ['나스닥 약세가 두드러졌습니다.', 'VIX 변동성이 빠르게 확대됐습니다.'],
-    tickers: [{ symbol: 'NVDA', name: 'NVIDIA', stance: '관심', summary: '실적 모멘텀은 유효하지만 추격 매수는 보수적으로 봅니다.' }],
+    tickers: [{
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      stance: '관심',
+      summary: '실적 모멘텀은 유효하지만 추격 매수는 보수적으로 봅니다.',
+      adminNote: 'AI 지출 사이클과 실적 민감도가 높은 핵심 관찰 종목입니다.',
+      price: 910.12,
+      change: -18.45,
+      changePercent: -1.99,
+      currency: 'USD',
+      sessionLabel: '장마감',
+      commentary: '반등 추격보다 900달러 지지 여부를 먼저 확인하는 편이 낫습니다.',
+      refreshedAt: '2026-03-23T01:47:00.000Z',
+      news: [
+        {
+          title: 'NVIDIA keeps AI demand in focus',
+          url: 'https://example.com/nvda-ai-demand',
+          source: 'Yahoo Finance',
+          publishedAt: '2026-03-23T01:20:00.000Z'
+        }
+      ]
+    }],
     source_name: 'daily_stock_analysis',
     source_url: 'https://example.com/report/2026-03-23',
     raw_payload: {},
@@ -129,6 +150,19 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(historyDialog.getByText('히스토리 상세')).toBeVisible();
     await page.mouse.click(10, 10);
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('market analysis renders enriched watchlist card with price, commentary, news and refresh CTA', async ({ page }) => {
+    await mockMarketAnalysisFeed(page);
+    await page.goto('/market-analysis', { waitUntil: 'networkidle' });
+
+    await expect(page.getByText('오늘 볼 종목')).toBeVisible();
+    await expect(page.getByText('NVDA')).toBeVisible();
+    await expect(page.getByText('NVIDIA', { exact: true })).toBeVisible();
+    await expect(page.getByText('AI 지출 사이클과 실적 민감도가 높은 핵심 관찰 종목입니다.')).toBeVisible();
+    await expect(page.getByText('반등 추격보다 900달러 지지 여부를 먼저 확인하는 편이 낫습니다.')).toBeVisible();
+    await expect(page.getByText('NVIDIA keeps AI demand in focus')).toBeVisible();
+    await expect(page.getByRole('button', { name: '새로고침', exact: true })).toBeVisible();
   });
 
   test('admin session hides login button and exposes quick add CTA when watchlist is empty', async ({ page }) => {
