@@ -27,14 +27,19 @@ import {
   createMarketAnalysisWatchlistItem,
   deleteMarketAnalysisWatchlistItem,
   fetchMarketAnalysisWatchlist,
+  fetchMarketAnalysisWatchlistLive,
+  mergeMarketAnalysisLiveTickers,
+  readWatchlistBaseTickers,
   readWatchlistSummary,
   selectActiveMarketAnalysisWatchlist
 } from '@/lib/marketAnalysisWatchlist';
 import type {
   MarketAnalysisReport,
   MarketAnalysisReportRow,
+  MarketAnalysisTicker,
   MarketAnalysisWatchlistInput,
-  MarketAnalysisWatchlistItem
+  MarketAnalysisWatchlistItem,
+  MarketAnalysisWatchlistLiveResponse
 } from '@/types/marketAnalysis';
 
 const formatDate = (date: string) =>
@@ -54,6 +59,50 @@ const formatDateTime = (value?: string | null) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const formatCurrency = (value?: number, currency = 'USD') => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '시세 대기';
+
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 2
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+};
+
+const formatSignedCurrency = (value?: number, currency = 'USD') => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return null;
+
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${formatCurrency(value, currency)}`;
+};
+
+const formatSignedPercent = (value?: number) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) return null;
+
+  const prefix = value > 0 ? '+' : '';
+  return `${prefix}${value.toFixed(2)}%`;
+};
+
+const readChangeToneClass = (value?: number) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 'border-white/10 bg-white/5 text-slate-200';
+  }
+
+  if (value > 0) {
+    return 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100';
+  }
+
+  if (value < 0) {
+    return 'border-rose-300/25 bg-rose-400/10 text-rose-100';
+  }
+
+  return 'border-white/10 bg-white/5 text-slate-200';
 };
 
 const buildSignalTone = (report: MarketAnalysisReport | null) => {
@@ -110,31 +159,7 @@ type MarketAnalysisFixtureWindow = Window & {
       isAdmin?: boolean;
     };
   };
-};
-
-const readDisplayTrackedIdeas = (
-  latestReport: MarketAnalysisReport | null,
-  watchlistItems: MarketAnalysisWatchlistItem[]
-) => {
-  if (watchlistItems.length > 0) {
-    return watchlistItems.map((item) => ({
-      key: item.id,
-      symbol: item.symbol,
-      name: item.name,
-      stance: item.stance,
-      summary: item.summary,
-      source: 'watchlist' as const
-    }));
-  }
-
-  return (latestReport?.tickers || []).map((ticker, index) => ({
-    key: `${ticker.symbol}-${index}`,
-    symbol: ticker.symbol,
-    name: ticker.name,
-    stance: ticker.stance,
-    summary: ticker.summary,
-    source: 'report' as const
-  }));
+  __MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__?: MarketAnalysisWatchlistLiveResponse;
 };
 
 const readErrorMessage = (error: unknown) => {
@@ -158,6 +183,10 @@ function MarketAnalysisPage() {
   const [authBusy, setAuthBusy] = useState(false);
   const [reloadVersion, setReloadVersion] = useState(0);
   const [expandedHistoryReport, setExpandedHistoryReport] = useState<MarketAnalysisReport | null>(null);
+  const [liveWatchlistTickers, setLiveWatchlistTickers] = useState<MarketAnalysisTicker[]>([]);
+  const [liveRefreshLoading, setLiveRefreshLoading] = useState(false);
+  const [liveRefreshError, setLiveRefreshError] = useState<string | null>(null);
+  const [liveRefreshMeta, setLiveRefreshMeta] = useState<{ cached: boolean; refreshedAt: string | null } | null>(null);
   const adminPanelRef = useRef<HTMLDivElement | null>(null);
   const watchlistSymbolInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -264,7 +293,85 @@ function MarketAnalysisPage() {
   const latestTimestamp = latestReport?.updatedAt || latestReport?.createdAt || null;
   const signalTone = buildSignalTone(latestReport);
   const watchlistSummary = useMemo(() => readWatchlistSummary(latestReport, watchlistItems), [latestReport, watchlistItems]);
-  const trackedIdeas = useMemo(() => readDisplayTrackedIdeas(latestReport, watchlistItems), [latestReport, watchlistItems]);
+  const baseTrackedIdeas = useMemo(() => readWatchlistBaseTickers(latestReport, watchlistItems), [latestReport, watchlistItems]);
+  const trackedIdeas = useMemo(
+    () => mergeMarketAnalysisLiveTickers(baseTrackedIdeas, liveWatchlistTickers),
+    [baseTrackedIdeas, liveWatchlistTickers]
+  );
+
+  useEffect(() => {
+    let active = true;
+    const fixtureWindow = window as MarketAnalysisFixtureWindow;
+
+    const applyLivePayload = (payload: MarketAnalysisWatchlistLiveResponse) => {
+      setLiveWatchlistTickers(payload.items || []);
+      setLiveRefreshMeta({
+        cached: payload.cached,
+        refreshedAt: payload.refreshedAt ?? null
+      });
+      setLiveRefreshError(null);
+    };
+
+    const loadLiveWatchlist = async () => {
+      if (watchlistItems.length === 0) {
+        setLiveWatchlistTickers([]);
+        setLiveRefreshMeta(null);
+        setLiveRefreshError(null);
+        setLiveRefreshLoading(false);
+        return;
+      }
+
+      if (fixtureWindow.__MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__) {
+        applyLivePayload(fixtureWindow.__MARKET_ANALYSIS_TEST_WATCHLIST_LIVE__);
+        return;
+      }
+
+      if (Array.isArray(fixtureWindow.__MARKET_ANALYSIS_TEST_ROWS__)) {
+        setLiveWatchlistTickers([]);
+        setLiveRefreshMeta(null);
+        setLiveRefreshError(null);
+        setLiveRefreshLoading(false);
+        return;
+      }
+
+      try {
+        setLiveRefreshLoading(true);
+        const payload = await fetchMarketAnalysisWatchlistLive();
+        if (!active) return;
+        applyLivePayload(payload);
+      } catch {
+        if (!active) return;
+        setLiveRefreshError('실시간 시세를 불러오지 못해 리포트 기준 정보로 표시합니다.');
+      } finally {
+        if (!active) return;
+        setLiveRefreshLoading(false);
+      }
+    };
+
+    void loadLiveWatchlist();
+
+    return () => {
+      active = false;
+    };
+  }, [watchlistItems]);
+
+  const handleLiveWatchlistRefresh = async () => {
+    try {
+      setLiveRefreshLoading(true);
+      setLiveRefreshError(null);
+
+      const payload = await fetchMarketAnalysisWatchlistLive();
+      setLiveWatchlistTickers(payload.items || []);
+      setLiveRefreshMeta({
+        cached: payload.cached,
+        refreshedAt: payload.refreshedAt ?? null
+      });
+    } catch {
+      setLiveRefreshError('실시간 시세를 갱신하지 못했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setLiveRefreshLoading(false);
+    }
+  };
 
   const handleAdminLogin = async () => {
     try {
@@ -430,8 +537,8 @@ function MarketAnalysisPage() {
                 onClick={() => setReloadVersion((current) => current + 1)}
               >
                 <RefreshCcw className="mr-2 h-4 w-4" />
-                새로고침
-            </Button>
+                피드 새로고침
+              </Button>
           </div>
         </div>
 
@@ -553,13 +660,29 @@ function MarketAnalysisPage() {
 
                   <Card className="border-white/10 bg-[linear-gradient(180deg,#080808,#141414)] text-slate-100 shadow-[0_20px_55px_rgba(0,0,0,0.24)]">
                     <CardHeader>
-                      <div className="flex items-center justify-between gap-3">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                          <Radar className="h-4 w-4 text-emerald-200" />
-                          추적 종목
-                        </CardTitle>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <CardTitle className="flex items-center gap-2 text-base">
+                            <Radar className="h-4 w-4 text-emerald-200" />
+                            오늘 볼 종목
+                          </CardTitle>
+                          <p className="mt-2 text-sm leading-6 text-slate-300/62">
+                            상시 watchlist를 기준으로 시세, 변동률, 관리자 메모, AI 코멘트를 한 카드에서 바로 확인합니다.
+                          </p>
+                        </div>
                         <div className="flex items-center gap-2">
-                          <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/62">상시 추적 종목</div>
+                          {watchlistSummary.usesPersistentWatchlist ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+                              onClick={handleLiveWatchlistRefresh}
+                              disabled={liveRefreshLoading}
+                            >
+                              <RefreshCcw className={`mr-2 h-4 w-4 ${liveRefreshLoading ? 'animate-spin' : ''}`} />
+                              새로고침
+                            </Button>
+                          ) : null}
                           {isAdmin ? (
                             <Button
                               type="button"
@@ -580,6 +703,16 @@ function MarketAnalysisPage() {
                         <Badge variant="outline" className="border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
                           {watchlistSummary.usesPersistentWatchlist ? '관리자 watchlist 우선' : '리포트 추적 종목 대체'}
                         </Badge>
+                        {watchlistSummary.usesPersistentWatchlist ? (
+                          <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
+                            5분 캐시 시세
+                          </Badge>
+                        ) : null}
+                        {liveRefreshMeta ? (
+                          <Badge variant="outline" className="border-white/10 bg-white/5 text-slate-200">
+                            {liveRefreshMeta.cached ? '캐시 반영' : '방금 갱신'} · {formatDateTime(liveRefreshMeta.refreshedAt)}
+                          </Badge>
+                        ) : null}
                         {watchlistLoading ? (
                           <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
                             watchlist 동기화 중
@@ -593,6 +726,12 @@ function MarketAnalysisPage() {
                         </div>
                       ) : null}
 
+                      {liveRefreshError ? (
+                        <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100/88">
+                          {liveRefreshError}
+                        </div>
+                      ) : null}
+
                       {isAdmin && !watchlistSummary.usesPersistentWatchlist ? (
                         <div className="mb-4 rounded-2xl border border-emerald-300/18 bg-emerald-400/8 px-4 py-3 text-sm leading-6 text-emerald-100/88">
                           상시 watchlist가 아직 비어 있습니다. 오른쪽 관리자 패널 또는 위 + 버튼으로 바로 추가할 수 있습니다.
@@ -601,23 +740,76 @@ function MarketAnalysisPage() {
 
                       {trackedIdeas.length > 0 ? (
                         <div className="space-y-3">
-                        {trackedIdeas.map((ticker) => (
-                            <div key={ticker.key} className="rounded-[22px] border border-white/10 bg-black/70 px-4 py-4">
-                              <div className="flex items-center justify-between gap-3">
+                          {trackedIdeas.map((ticker) => (
+                            <div key={ticker.symbol} className="rounded-[24px] border border-white/10 bg-black/70 px-4 py-4 shadow-[0_18px_40px_rgba(0,0,0,0.22)]">
+                              <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                   <div className="text-lg font-semibold text-white">{ticker.symbol}</div>
                                   {ticker.name ? <div className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-400/58">{ticker.name}</div> : null}
+                                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                                    <span>{watchlistSummary.usesPersistentWatchlist ? '관리자 watchlist' : '오늘 리포트'}</span>
+                                    {ticker.sessionLabel ? <span>{ticker.sessionLabel}</span> : null}
+                                    {ticker.refreshedAt ? <span>{formatDateTime(ticker.refreshedAt)}</span> : null}
+                                  </div>
                                 </div>
-                                {ticker.stance ? (
-                                  <Badge variant="outline" className="border-cyan-300/30 bg-cyan-400/10 text-cyan-100">
-                                    {ticker.stance}
-                                  </Badge>
-                                ) : null}
+                                <div className="flex flex-col items-end gap-2">
+                                  {ticker.stance ? (
+                                    <Badge variant="outline" className="border-cyan-300/30 bg-cyan-400/10 text-cyan-100">
+                                      {ticker.stance}
+                                    </Badge>
+                                  ) : null}
+                                  <div className="text-right">
+                                    <div className="text-xl font-semibold text-white sm:text-2xl">
+                                      {formatCurrency(ticker.price, ticker.currency || 'USD')}
+                                    </div>
+                                    {formatSignedPercent(ticker.changePercent) ? (
+                                      <div className={`mt-2 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${readChangeToneClass(ticker.changePercent)}`}>
+                                        <span>{formatSignedCurrency(ticker.change, ticker.currency || 'USD')}</span>
+                                        <span>{formatSignedPercent(ticker.changePercent)}</span>
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </div>
                               </div>
-                              <div className="mt-3 text-[11px] uppercase tracking-[0.22em] text-slate-500">
-                                {ticker.source === 'watchlist' ? '관리자 watchlist' : '오늘 리포트'}
-                              </div>
-                              {ticker.summary ? <p className="mt-3 text-sm leading-7 text-slate-300/74">{ticker.summary}</p> : null}
+
+                              {ticker.commentary ? (
+                                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-4">
+                                  <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">AI 한줄 판단</div>
+                                  <p className="mt-3 text-sm leading-7 text-slate-100/88">{ticker.commentary}</p>
+                                </div>
+                              ) : null}
+
+                              {ticker.adminNote ? (
+                                <div className="mt-4 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-4">
+                                  <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">관리자 메모</div>
+                                  <p className="mt-3 text-sm leading-7 text-slate-300/74">{ticker.adminNote}</p>
+                                </div>
+                              ) : null}
+
+                              {!ticker.commentary && ticker.summary ? (
+                                <p className="mt-4 text-sm leading-7 text-slate-300/74">{ticker.summary}</p>
+                              ) : null}
+
+                              {ticker.news && ticker.news.length > 0 ? (
+                                <div className="mt-4 space-y-2">
+                                  <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/60">관련 뉴스</div>
+                                  {ticker.news.slice(0, 2).map((news) => (
+                                    <a
+                                      key={`${ticker.symbol}-${news.url}`}
+                                      href={news.url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block rounded-[18px] border border-white/10 bg-white/[0.03] px-4 py-3 transition hover:border-white/20 hover:bg-white/[0.06]"
+                                    >
+                                      <div className="text-sm font-medium text-white">{news.title}</div>
+                                      <div className="mt-2 text-xs text-slate-400/70">
+                                        {news.source || '출처 없음'}
+                                        {news.publishedAt ? ` · ${formatDateTime(news.publishedAt)}` : ''}
+                                      </div>
+                                    </a>
+                                  ))}
+                                </div>
+                              ) : null}
                             </div>
                           ))}
                         </div>

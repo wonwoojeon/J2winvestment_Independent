@@ -1,8 +1,24 @@
+export interface MarketAnalysisTickerNews {
+  title: string;
+  url: string;
+  source?: string;
+  publishedAt?: string;
+}
+
 export interface MarketAnalysisTicker {
   symbol: string;
   name?: string;
   stance?: string;
   summary?: string;
+  adminNote?: string;
+  price?: number;
+  change?: number;
+  changePercent?: number;
+  currency?: string;
+  sessionLabel?: string;
+  commentary?: string;
+  refreshedAt?: string;
+  news?: MarketAnalysisTickerNews[];
 }
 
 export interface MarketAnalysisWatchlistInput {
@@ -48,6 +64,13 @@ export interface MarketAnalysisWatchlistResponse {
   ok: boolean;
   items: MarketAnalysisWatchlistItem[];
   viewer: MarketAnalysisWatchlistViewer;
+}
+
+export interface MarketAnalysisWatchlistLiveResponse {
+  ok: boolean;
+  cached: boolean;
+  refreshedAt: string;
+  items: MarketAnalysisTicker[];
 }
 
 export interface MarketAnalysisPayload {

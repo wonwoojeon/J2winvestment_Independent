@@ -2,8 +2,10 @@ import { z } from 'zod';
 
 import type {
   MarketAnalysisReport,
+  MarketAnalysisTicker,
   MarketAnalysisWatchlistInput,
   MarketAnalysisWatchlistItem,
+  MarketAnalysisWatchlistLiveResponse,
   MarketAnalysisWatchlistResponse,
   MarketAnalysisWatchlistRow,
 } from '../types/marketAnalysis.ts';
@@ -80,6 +82,71 @@ export const readWatchlistSummary = (
   };
 };
 
+const mergeTickerOverlay = (
+  baseTicker: MarketAnalysisTicker,
+  overlayTicker: MarketAnalysisTicker | undefined,
+): MarketAnalysisTicker => {
+  if (!overlayTicker) return baseTicker;
+
+  return {
+    ...baseTicker,
+    price: overlayTicker.price ?? baseTicker.price,
+    change: overlayTicker.change ?? baseTicker.change,
+    changePercent: overlayTicker.changePercent ?? baseTicker.changePercent,
+    currency: overlayTicker.currency ?? baseTicker.currency,
+    sessionLabel: overlayTicker.sessionLabel ?? baseTicker.sessionLabel,
+    refreshedAt: overlayTicker.refreshedAt ?? baseTicker.refreshedAt,
+    news: overlayTicker.news && overlayTicker.news.length > 0 ? overlayTicker.news : baseTicker.news,
+  };
+};
+
+export const readWatchlistBaseTickers = (
+  report: MarketAnalysisReport | null,
+  watchlistItems: MarketAnalysisWatchlistItem[],
+): MarketAnalysisTicker[] => {
+  const reportTickers = report?.tickers || [];
+  if (watchlistItems.length === 0) {
+    return reportTickers;
+  }
+
+  const reportTickerBySymbol = new Map(
+    reportTickers.map((ticker) => [ticker.symbol.trim().toUpperCase(), ticker]),
+  );
+
+  return watchlistItems.map((item) => {
+    const reportTicker = reportTickerBySymbol.get(item.symbol.trim().toUpperCase());
+
+    return {
+      symbol: item.symbol,
+      name: item.name || reportTicker?.name,
+      stance: item.stance || reportTicker?.stance,
+      summary: reportTicker?.summary,
+      adminNote: item.summary || reportTicker?.adminNote,
+      price: reportTicker?.price,
+      change: reportTicker?.change,
+      changePercent: reportTicker?.changePercent,
+      currency: reportTicker?.currency,
+      sessionLabel: reportTicker?.sessionLabel,
+      commentary: reportTicker?.commentary,
+      refreshedAt: reportTicker?.refreshedAt,
+      news: reportTicker?.news || [],
+    } satisfies MarketAnalysisTicker;
+  });
+};
+
+export const mergeMarketAnalysisLiveTickers = (
+  baseTickers: MarketAnalysisTicker[],
+  overlayTickers: MarketAnalysisTicker[],
+) => {
+  const overlayBySymbol = new Map(
+    overlayTickers.map((ticker) => [ticker.symbol.trim().toUpperCase(), ticker]),
+  );
+
+  return baseTickers.map((ticker) =>
+    mergeTickerOverlay(ticker, overlayBySymbol.get(ticker.symbol.trim().toUpperCase())),
+  );
+};
+
 const readApiError = async (response: Response) => {
   try {
     const payload = await response.json();
@@ -113,6 +180,20 @@ export const fetchMarketAnalysisWatchlist = async (
   return {
     ...payload,
     items: selectActiveMarketAnalysisWatchlist(payload.items || []),
+  };
+};
+
+export const fetchMarketAnalysisWatchlistLive = async (): Promise<MarketAnalysisWatchlistLiveResponse> => {
+  const response = await fetch('/api/market-analysis-watchlist/live');
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response));
+  }
+
+  const payload = (await response.json()) as MarketAnalysisWatchlistLiveResponse;
+  return {
+    ...payload,
+    items: payload.items || [],
   };
 };
 
