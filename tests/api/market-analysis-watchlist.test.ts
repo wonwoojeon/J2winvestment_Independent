@@ -5,12 +5,14 @@ import {
   WatchlistApiError,
   authenticateWatchlistAdminRequest,
   isAdminEmail,
+  mapMarketAnalysisWatchlistRows,
+  readWatchlistViewer,
 } from '../../api/_lib/market-analysis-watchlist.ts';
 import {
   normalizeMarketAnalysisWatchlistInput,
   readWatchlistSummary,
 } from '../../src/lib/marketAnalysisWatchlist.ts';
-import type { MarketAnalysisReport, MarketAnalysisWatchlistItem } from '../../src/types/marketAnalysis.ts';
+import type { MarketAnalysisReport, MarketAnalysisWatchlistItem, MarketAnalysisWatchlistRow } from '../../src/types/marketAnalysis.ts';
 
 const makeReport = (tickers = 2): MarketAnalysisReport => ({
   id: 'report-1',
@@ -104,6 +106,86 @@ test('authenticateWatchlistAdminRequest returns admin email when token is valid'
   );
 
   assert.equal(adminEmail, 'admin@example.com');
+});
+
+test('readWatchlistViewer returns anonymous viewer without bearer token', async () => {
+  const viewer = await readWatchlistViewer(undefined, { adminEmails: 'admin@example.com' });
+
+  assert.deepEqual(viewer, {
+    email: null,
+    isAdmin: false,
+  });
+});
+
+test('mapMarketAnalysisWatchlistRows keeps only active rows and sorts by order then created time', () => {
+  const rows: MarketAnalysisWatchlistRow[] = [
+    {
+      id: 'watch-2',
+      symbol: 'MSFT',
+      name: 'Microsoft',
+      stance: '중립',
+      summary: null,
+      sort_order: 20,
+      is_active: true,
+      created_by_email: 'admin@example.com',
+      created_at: '2026-03-23T00:02:00.000Z',
+      updated_at: '2026-03-23T00:02:00.000Z',
+    },
+    {
+      id: 'watch-0',
+      symbol: 'QQQ',
+      name: null,
+      stance: null,
+      summary: null,
+      sort_order: 10,
+      is_active: false,
+      created_by_email: 'admin@example.com',
+      created_at: '2026-03-23T00:01:00.000Z',
+      updated_at: '2026-03-23T00:01:00.000Z',
+    },
+    {
+      id: 'watch-1',
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      stance: '관심',
+      summary: '핵심',
+      sort_order: 20,
+      is_active: true,
+      created_by_email: 'admin@example.com',
+      created_at: '2026-03-23T00:01:00.000Z',
+      updated_at: '2026-03-23T00:01:00.000Z',
+    },
+  ];
+
+  assert.deepEqual(
+    mapMarketAnalysisWatchlistRows(rows),
+    [
+      {
+        id: 'watch-1',
+        symbol: 'NVDA',
+        name: 'NVIDIA',
+        stance: '관심',
+        summary: '핵심',
+        sortOrder: 20,
+        isActive: true,
+        createdByEmail: 'admin@example.com',
+        createdAt: '2026-03-23T00:01:00.000Z',
+        updatedAt: '2026-03-23T00:01:00.000Z',
+      },
+      {
+        id: 'watch-2',
+        symbol: 'MSFT',
+        name: 'Microsoft',
+        stance: '중립',
+        summary: undefined,
+        sortOrder: 20,
+        isActive: true,
+        createdByEmail: 'admin@example.com',
+        createdAt: '2026-03-23T00:02:00.000Z',
+        updatedAt: '2026-03-23T00:02:00.000Z',
+      },
+    ],
+  );
 });
 
 test('readWatchlistSummary prefers persistent watchlist count over report tickers', () => {

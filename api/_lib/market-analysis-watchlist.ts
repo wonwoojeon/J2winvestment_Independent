@@ -1,12 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 
-import {
-  mapMarketAnalysisWatchlistItem,
-  normalizeMarketAnalysisWatchlistInput,
-  selectActiveMarketAnalysisWatchlist,
-} from '../../src/lib/marketAnalysisWatchlist.ts';
 import type {
+  MarketAnalysisWatchlistInput,
+  MarketAnalysisWatchlistItem,
   MarketAnalysisWatchlistRow,
   MarketAnalysisWatchlistViewer,
 } from '../../src/types/marketAnalysis.ts';
@@ -36,6 +33,50 @@ export class WatchlistApiError extends Error {
 const createWatchlistDeleteParamsSchema = z.object({
   id: z.string().trim().uuid(),
 });
+
+const marketAnalysisWatchlistInputSchema = z.object({
+  symbol: z.string().trim().min(1),
+  name: z.string().trim().min(1).optional(),
+  stance: z.string().trim().min(1).optional(),
+  summary: z.string().trim().min(1).optional(),
+  sortOrder: z.number().int().min(0).optional().default(100),
+});
+
+const normalizeServerWatchlistInput = (input: MarketAnalysisWatchlistInput | unknown) => {
+  const parsed = marketAnalysisWatchlistInputSchema.parse(input);
+
+  return {
+    symbol: parsed.symbol.trim().toUpperCase(),
+    name: parsed.name?.trim() || undefined,
+    stance: parsed.stance?.trim() || undefined,
+    summary: parsed.summary?.trim() || undefined,
+    sortOrder: parsed.sortOrder,
+  };
+};
+
+const mapServerWatchlistItem = (row: MarketAnalysisWatchlistRow): MarketAnalysisWatchlistItem => ({
+  id: row.id,
+  symbol: row.symbol,
+  name: row.name ?? undefined,
+  stance: row.stance ?? undefined,
+  summary: row.summary ?? undefined,
+  sortOrder: row.sort_order,
+  isActive: row.is_active,
+  createdByEmail: row.created_by_email ?? undefined,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+const selectActiveServerWatchlist = (items: MarketAnalysisWatchlistItem[]) =>
+  items
+    .filter((item) => item.isActive)
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+
+      return left.createdAt.localeCompare(right.createdAt);
+    });
 
 const readBearerToken = (authorizationHeader?: string | string[]) => {
   const header = Array.isArray(authorizationHeader) ? authorizationHeader[0] : authorizationHeader;
@@ -131,7 +172,7 @@ export const readWatchlistViewer = async (
 };
 
 export const toMarketAnalysisWatchlistRowInput = (payload: unknown, createdByEmail: string) => {
-  const normalized = normalizeMarketAnalysisWatchlistInput(payload);
+  const normalized = normalizeServerWatchlistInput(payload);
 
   return {
     symbol: normalized.symbol,
@@ -145,7 +186,7 @@ export const toMarketAnalysisWatchlistRowInput = (payload: unknown, createdByEma
 };
 
 export const mapMarketAnalysisWatchlistRows = (rows: MarketAnalysisWatchlistRow[]) =>
-  selectActiveMarketAnalysisWatchlist(rows.map(mapMarketAnalysisWatchlistItem));
+  selectActiveServerWatchlist(rows.map(mapServerWatchlistItem));
 
 export const readDeleteWatchlistId = (value: string | string[] | undefined) => {
   const id = Array.isArray(value) ? value[0] : value;
