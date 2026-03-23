@@ -1,7 +1,91 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+
+const mockReports = [
+  {
+    id: 'report-2026-03-23',
+    report_date: '2026-03-23',
+    market_scope: 'us',
+    title: '2026-03-23 미국 증시 데일리 분석',
+    summary: '대형 기술주가 변동성을 키웠지만, 핵심은 지금이 추격보다 눌림 체크 구간이라는 점입니다.',
+    highlights: ['나스닥 약세가 두드러졌습니다.', 'VIX 변동성이 빠르게 확대됐습니다.'],
+    tickers: [{ symbol: 'NVDA', name: 'NVIDIA', stance: '관심', summary: '실적 모멘텀은 유효하지만 추격 매수는 보수적으로 봅니다.' }],
+    source_name: 'daily_stock_analysis',
+    source_url: 'https://example.com/report/2026-03-23',
+    raw_payload: {},
+    created_at: '2026-03-23T01:47:00.000Z',
+    updated_at: '2026-03-23T01:47:00.000Z'
+  },
+  {
+    id: 'report-2026-03-22',
+    report_date: '2026-03-22',
+    market_scope: 'us',
+    title: '2026-03-22 미국 증시 데일리 분석',
+    summary:
+      '미국 증시는 3대 지수 모두 하락하며 위험회피 심리가 확산되었다. 특히 기술주 중심의 나스닥이 2% 넘게 밀린 가운데, VIX가 11% 이상 급등하며 시장 불안감이 가중되고 있다. 다우지수 상대적 선방은 방어적 성격의 자산 선호 현상을 반영한다.',
+    highlights: ['3대 지수 동반 하락', 'VIX 급등으로 방어 심리 강화'],
+    tickers: [{ symbol: 'MSFT', name: 'Microsoft', stance: '중립', summary: '지수 하락기 방어력은 있지만 상방 탄력은 확인이 더 필요합니다.' }],
+    source_name: 'daily_stock_analysis',
+    source_url: 'https://example.com/report/2026-03-22',
+    raw_payload: {},
+    created_at: '2026-03-22T01:47:00.000Z',
+    updated_at: '2026-03-22T01:47:00.000Z'
+  },
+  {
+    id: 'report-2026-03-21',
+    report_date: '2026-03-21',
+    market_scope: 'us',
+    title: '미국 증시 데일리 분석',
+    summary: '연준 경로 재평가 구간에서 대형 기술주 중심 상대 강세가 유지됐습니다.',
+    highlights: ['대형 기술주 상대 강세'],
+    tickers: [],
+    source_name: 'daily_stock_analysis',
+    source_url: 'https://example.com/report/2026-03-21',
+    raw_payload: {},
+    created_at: '2026-03-21T01:47:00.000Z',
+    updated_at: '2026-03-21T01:47:00.000Z'
+  }
+];
+
+const mockWatchlist = {
+  ok: true,
+  items: [
+    {
+      id: 'watch-1',
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      stance: '관심',
+      summary: 'AI 지출 사이클과 실적 민감도가 높은 핵심 관찰 종목입니다.',
+      sortOrder: 10,
+      isActive: true,
+      createdByEmail: 'admin@example.com',
+      createdAt: '2026-03-23T01:47:00.000Z',
+      updatedAt: '2026-03-23T01:47:00.000Z'
+    }
+  ],
+  viewer: {
+    email: null,
+    isAdmin: false
+  }
+};
+
+const mockMarketAnalysisFeed = async (page: Page) => {
+  await page.addInitScript(
+    ({ reports, watchlist }) => {
+      const testWindow = window as Window & {
+        __MARKET_ANALYSIS_TEST_ROWS__?: unknown;
+        __MARKET_ANALYSIS_TEST_WATCHLIST__?: unknown;
+      };
+
+      testWindow.__MARKET_ANALYSIS_TEST_ROWS__ = reports;
+      testWindow.__MARKET_ANALYSIS_TEST_WATCHLIST__ = watchlist;
+    },
+    { reports: mockReports, watchlist: mockWatchlist }
+  );
+};
 
 test.describe('Market Analysis Public Entry', () => {
   test('public landing exposes market analysis CTA and route shell', async ({ page }) => {
+    await mockMarketAnalysisFeed(page);
     await page.goto('/', { waitUntil: 'networkidle' });
 
     await expect(page.getByRole('button', { name: '오늘의 시장분석' })).toBeVisible();
@@ -10,14 +94,28 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(page).toHaveURL(/\/market-analysis$/);
     await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '운영 상태' }).first()).toBeVisible();
-    await expect(page.getByText('상시 추적 종목')).toBeVisible();
+    await expect(page.getByText('상시 추적 종목').first()).toBeVisible();
+    await expect(page.getByText('원문 링크 열기')).toHaveCount(0);
+    await expect(page.getByText('데이터 파이프라인')).toHaveCount(0);
   });
 
-  test('direct market analysis route renders operating status panel', async ({ page }) => {
-    await page.goto('/market-analysis', { waitUntil: 'domcontentloaded' });
+  test('market analysis history card opens and closes detail dialog', async ({ page }) => {
+    await mockMarketAnalysisFeed(page);
+    await page.goto('/', { waitUntil: 'networkidle' });
 
+    await page.getByRole('button', { name: '오늘의 시장분석' }).click();
+    await expect(page).toHaveURL(/\/market-analysis$/);
     await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: '운영 상태' }).first()).toBeVisible();
-    await expect(page.getByText('상시 추적 종목')).toBeVisible();
+    await expect(page.getByText('2026-03-22 미국 증시 데일리 분석')).toBeVisible();
+    await expect(page.getByText('데이터 파이프라인')).toHaveCount(0);
+
+    const moreButton = page.getByRole('button', { name: /전체 내용 보기/i }).first();
+    await expect(moreButton).toBeVisible();
+    await moreButton.click();
+    const historyDialog = page.getByRole('dialog');
+    await expect(historyDialog).toBeVisible();
+    await expect(historyDialog.getByText('히스토리 상세')).toBeVisible();
+    await page.mouse.click(10, 10);
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
