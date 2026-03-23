@@ -8,16 +8,34 @@ import {
   ExternalLink,
   Globe2,
   LineChart,
+  LockKeyhole,
+  Plus,
   Radar,
   RefreshCcw,
-  Sparkles
+  ShieldCheck,
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { createMarketAnalysisEmptyState, mapMarketAnalysisReport, selectPreferredMarketAnalysisReports } from '@/lib/marketAnalysis';
-import type { MarketAnalysisReport, MarketAnalysisReportRow } from '@/types/marketAnalysis';
+import {
+  createMarketAnalysisWatchlistItem,
+  deleteMarketAnalysisWatchlistItem,
+  fetchMarketAnalysisWatchlist,
+  readWatchlistSummary
+} from '@/lib/marketAnalysisWatchlist';
+import type {
+  MarketAnalysisReport,
+  MarketAnalysisReportRow,
+  MarketAnalysisWatchlistInput,
+  MarketAnalysisWatchlistItem
+} from '@/types/marketAnalysis';
 
 const formatDate = (date: string) =>
   new Date(`${date}T00:00:00`).toLocaleDateString('ko-KR', {
@@ -65,9 +83,59 @@ const buildSignalTone = (report: MarketAnalysisReport | null) => {
   };
 };
 
+const defaultWatchlistForm = {
+  symbol: '',
+  name: '',
+  stance: '관심',
+  summary: '',
+  sortOrder: '100'
+};
+
+const stanceOptions = ['관심', '중립', '경계'];
+
+const readDisplayTrackedIdeas = (
+  latestReport: MarketAnalysisReport | null,
+  watchlistItems: MarketAnalysisWatchlistItem[]
+) => {
+  if (watchlistItems.length > 0) {
+    return watchlistItems.map((item) => ({
+      key: item.id,
+      symbol: item.symbol,
+      name: item.name,
+      stance: item.stance,
+      summary: item.summary,
+      source: 'watchlist' as const
+    }));
+  }
+
+  return (latestReport?.tickers || []).map((ticker, index) => ({
+    key: `${ticker.symbol}-${index}`,
+    symbol: ticker.symbol,
+    name: ticker.name,
+    stance: ticker.stance,
+    summary: ticker.summary,
+    source: 'report' as const
+  }));
+};
+
+const readErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  return '요청을 처리하지 못했습니다.';
+};
+
 function MarketAnalysisPage() {
   const [reports, setReports] = useState<MarketAnalysisReport[]>(createMarketAnalysisEmptyState());
   const [loading, setLoading] = useState(true);
+  const [watchlistItems, setWatchlistItems] = useState<MarketAnalysisWatchlistItem[]>([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(true);
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
+  const [viewerEmail, setViewerEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [watchlistForm, setWatchlistForm] = useState(defaultWatchlistForm);
+  const [adminNotice, setAdminNotice] = useState<string | null>(null);
+  const [submittingWatchlist, setSubmittingWatchlist] = useState(false);
+  const [deletingWatchlistId, setDeletingWatchlistId] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
 
   useEffect(() => {
@@ -75,33 +143,69 @@ function MarketAnalysisPage() {
 
     const loadReports = async () => {
       setLoading(true);
+      setWatchlistLoading(true);
 
-      const { data, error } = await supabase
-        .from('market_analysis_reports')
-        .select('*')
-        .eq('market_scope', 'us')
-        .order('report_date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(8);
+      const [
+        { data, error },
+        { data: sessionData }
+      ] = await Promise.all([
+        supabase
+          .from('market_analysis_reports')
+          .select('*')
+          .eq('market_scope', 'us')
+          .order('report_date', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(8),
+        supabase.auth.getSession()
+      ]);
 
       if (!active) return;
+
+      const accessToken = sessionData.session?.access_token ?? null;
+      const sessionEmail = sessionData.session?.user?.email ?? null;
+      setViewerEmail(sessionEmail);
 
       if (error) {
         console.warn('market_analysis_reports read skipped:', error);
         setReports(createMarketAnalysisEmptyState());
-        setLoading(false);
-        return;
+      } else {
+        const nextReports = selectPreferredMarketAnalysisReports(((data || []) as MarketAnalysisReportRow[]).map(mapMarketAnalysisReport));
+        setReports(nextReports);
       }
 
-      const nextReports = selectPreferredMarketAnalysisReports(((data || []) as MarketAnalysisReportRow[]).map(mapMarketAnalysisReport));
-      setReports(nextReports);
+      try {
+        const watchlistResponse = await fetchMarketAnalysisWatchlist(accessToken);
+        if (!active) return;
+
+        setWatchlistItems(watchlistResponse.items);
+        setIsAdmin(watchlistResponse.viewer.isAdmin);
+        setViewerEmail(watchlistResponse.viewer.email ?? sessionEmail);
+        setWatchlistError(null);
+      } catch (watchlistLoadError) {
+        if (!active) return;
+
+        console.warn('market_analysis_watchlist read skipped:', watchlistLoadError);
+        setWatchlistItems([]);
+        setIsAdmin(false);
+        setWatchlistError(readErrorMessage(watchlistLoadError));
+      }
+
       setLoading(false);
+      setWatchlistLoading(false);
     };
 
     loadReports();
 
+    const {
+      data: { subscription }
+    } = supabase.auth.onAuthStateChange(() => {
+      if (!active) return;
+      setRefreshTick((current) => current + 1);
+    });
+
     return () => {
       active = false;
+      subscription.unsubscribe();
     };
   }, [refreshTick]);
 
@@ -109,6 +213,99 @@ function MarketAnalysisPage() {
   const olderReports = useMemo(() => reports.slice(1), [reports]);
   const latestTimestamp = latestReport?.updatedAt || latestReport?.createdAt || null;
   const signalTone = buildSignalTone(latestReport);
+  const watchlistSummary = useMemo(() => readWatchlistSummary(latestReport, watchlistItems), [latestReport, watchlistItems]);
+  const trackedIdeas = useMemo(() => readDisplayTrackedIdeas(latestReport, watchlistItems), [latestReport, watchlistItems]);
+
+  const handleAdminLogin = async () => {
+    try {
+      setAuthBusy(true);
+      setAdminNotice(null);
+      setWatchlistError(null);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      setWatchlistError(readErrorMessage(error));
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleWatchlistFieldChange = (field: keyof typeof defaultWatchlistForm, value: string) => {
+    setWatchlistForm((current) => ({
+      ...current,
+      [field]: value
+    }));
+  };
+
+  const handleWatchlistCreate = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    try {
+      setSubmittingWatchlist(true);
+      setAdminNotice(null);
+      setWatchlistError(null);
+
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? null;
+      if (!accessToken) {
+        throw new Error('관리자 로그인 후 다시 시도해주세요.');
+      }
+
+      const nextItem = await createMarketAnalysisWatchlistItem(
+        {
+          symbol: watchlistForm.symbol,
+          name: watchlistForm.name || undefined,
+          stance: watchlistForm.stance || undefined,
+          summary: watchlistForm.summary || undefined,
+          sortOrder: Number(watchlistForm.sortOrder) || 100
+        } satisfies MarketAnalysisWatchlistInput,
+        accessToken
+      );
+
+      setWatchlistItems((current) => [...current.filter((item) => item.symbol !== nextItem.symbol), nextItem].sort((left, right) => left.sortOrder - right.sortOrder));
+      setWatchlistForm(defaultWatchlistForm);
+      setAdminNotice(`${nextItem.symbol}를 상시 추적 종목에 추가했습니다.`);
+    } catch (error) {
+      setWatchlistError(readErrorMessage(error));
+    } finally {
+      setSubmittingWatchlist(false);
+    }
+  };
+
+  const handleWatchlistDelete = async (id: string) => {
+    try {
+      setDeletingWatchlistId(id);
+      setAdminNotice(null);
+      setWatchlistError(null);
+
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token ?? null;
+      if (!accessToken) {
+        throw new Error('관리자 로그인 후 다시 시도해주세요.');
+      }
+
+      await deleteMarketAnalysisWatchlistItem(id, accessToken);
+      setWatchlistItems((current) => current.filter((item) => item.id !== id));
+      setAdminNotice('선택한 추적 종목을 삭제했습니다.');
+    } catch (error) {
+      setWatchlistError(readErrorMessage(error));
+    } finally {
+      setDeletingWatchlistId(null);
+    }
+  };
 
   const topStats = useMemo(
     () => [
@@ -124,8 +321,8 @@ function MarketAnalysisPage() {
       },
       {
         label: '추적 종목',
-        value: latestReport ? `${latestReport.tickers.length}개` : '0개',
-        detail: latestReport ? '오늘 리포트 기준' : '업로드 후 반영'
+        value: watchlistSummary.countLabel,
+        detail: watchlistSummary.detail
       },
       {
         label: '누적 표시',
@@ -133,7 +330,7 @@ function MarketAnalysisPage() {
         detail: reports.length > 1 ? '히스토리 축적 중' : '첫 기록 단계'
       }
     ],
-    [latestReport, reports.length]
+    [latestReport, reports.length, watchlistSummary]
   );
 
   return (
@@ -147,14 +344,33 @@ function MarketAnalysisPage() {
             </Link>
           </Button>
 
-          <Button
-            variant="outline"
-            className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10"
-            onClick={() => setRefreshTick((current) => current + 1)}
-          >
-            <RefreshCcw className="mr-2 h-4 w-4" />
-            새로고침
-          </Button>
+          <div className="flex flex-wrap items-center gap-3">
+            {viewerEmail ? (
+              <Badge variant="outline" className="border-white/15 bg-white/5 px-3 py-2 text-slate-100">
+                {isAdmin ? <ShieldCheck className="mr-2 h-4 w-4 text-emerald-200" /> : <LockKeyhole className="mr-2 h-4 w-4 text-slate-300" />}
+                {isAdmin ? `관리자 세션 · ${viewerEmail}` : `읽기 전용 세션 · ${viewerEmail}`}
+              </Badge>
+            ) : (
+              <Button
+                variant="outline"
+                className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10"
+                onClick={handleAdminLogin}
+                disabled={authBusy}
+              >
+                <LockKeyhole className="mr-2 h-4 w-4" />
+                {authBusy ? '로그인 연결 중...' : '관리자 로그인'}
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              className="border-white/15 bg-white/5 text-slate-100 hover:bg-white/10"
+              onClick={() => setRefreshTick((current) => current + 1)}
+            >
+              <RefreshCcw className="mr-2 h-4 w-4" />
+              새로고침
+            </Button>
+          </div>
         </div>
 
         <section className="glass-panel relative overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-6 shadow-[0_30px_80px_rgba(2,6,23,0.45)] sm:p-8">
@@ -183,6 +399,9 @@ function MarketAnalysisPage() {
               <div className="mt-6 flex flex-wrap gap-2">
                 <Badge variant="outline" className={signalTone.accent}>
                   {signalTone.label}
+                </Badge>
+                <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
+                  상시 추적 종목
                 </Badge>
                 <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
                   {latestReport ? `${latestReport.sourceName}` : 'daily_stock_analysis 연동 대기'}
@@ -236,7 +455,10 @@ function MarketAnalysisPage() {
                         핵심 포인트 {latestReport.highlights.length}개
                       </Badge>
                       <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
-                        추적 종목 {latestReport.tickers.length}개
+                        추적 종목 {watchlistSummary.countLabel}
+                      </Badge>
+                      <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
+                        {watchlistSummary.detail}
                       </Badge>
                       {latestReport.sourceUrl ? (
                         <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
@@ -325,16 +547,36 @@ function MarketAnalysisPage() {
 
                   <Card className="border-white/10 bg-white/5 text-slate-100 shadow-[0_20px_55px_rgba(2,6,23,0.24)]">
                     <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Radar className="h-4 w-4 text-emerald-200" />
-                        추적 종목
-                      </CardTitle>
+                      <div className="flex items-center justify-between gap-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          <Radar className="h-4 w-4 text-emerald-200" />
+                          추적 종목
+                        </CardTitle>
+                        <div className="text-[11px] uppercase tracking-[0.24em] text-slate-400/62">상시 추적 종목</div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      {latestReport.tickers.length > 0 ? (
+                      <div className="mb-4 flex flex-wrap gap-2">
+                        <Badge variant="outline" className="border-emerald-300/25 bg-emerald-400/10 text-emerald-100">
+                          {watchlistSummary.usesPersistentWatchlist ? '관리자 watchlist 우선' : '리포트 추적 종목 대체'}
+                        </Badge>
+                        {watchlistLoading ? (
+                          <Badge variant="outline" className="border-white/15 bg-white/7 text-slate-200">
+                            watchlist 동기화 중
+                          </Badge>
+                        ) : null}
+                      </div>
+
+                      {watchlistError ? (
+                        <div className="mb-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100/88">
+                          상시 watchlist를 불러오지 못해 현재는 오늘 리포트 기준으로 표시합니다.
+                        </div>
+                      ) : null}
+
+                      {trackedIdeas.length > 0 ? (
                         <div className="space-y-3">
-                          {latestReport.tickers.map((ticker) => (
-                            <div key={`${ticker.symbol}-${ticker.summary || ''}`} className="rounded-[22px] border border-white/10 bg-slate-950/35 px-4 py-4">
+                          {trackedIdeas.map((ticker) => (
+                            <div key={ticker.key} className="rounded-[22px] border border-white/10 bg-slate-950/35 px-4 py-4">
                               <div className="flex items-center justify-between gap-3">
                                 <div>
                                   <div className="text-lg font-semibold text-white">{ticker.symbol}</div>
@@ -345,6 +587,9 @@ function MarketAnalysisPage() {
                                     {ticker.stance}
                                   </Badge>
                                 ) : null}
+                              </div>
+                              <div className="mt-3 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+                                {ticker.source === 'watchlist' ? '관리자 watchlist' : '오늘 리포트'}
                               </div>
                               {ticker.summary ? <p className="mt-3 text-sm leading-7 text-slate-300/74">{ticker.summary}</p> : null}
                             </div>
@@ -396,6 +641,138 @@ function MarketAnalysisPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {isAdmin ? (
+              <Card className="border-emerald-300/18 bg-[linear-gradient(180deg,rgba(16,185,129,0.10),rgba(15,23,42,0.72))] text-slate-100 shadow-[0_24px_60px_rgba(2,6,23,0.28)]">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-4 w-4 text-emerald-200" />
+                    추적 종목 관리
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3 text-sm leading-6 text-slate-300/78">
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">관리자 확인</div>
+                    <div className="mt-2 font-medium text-white">{viewerEmail || '로그인 계정 확인 중'}</div>
+                    <p className="mt-2 text-sm leading-6 text-slate-300/68">관리자 이메일 목록과 일치하는 계정만 상시 watchlist를 추가하거나 삭제할 수 있습니다.</p>
+                  </div>
+
+                  {adminNotice ? (
+                    <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm leading-6 text-emerald-100/88">
+                      {adminNotice}
+                    </div>
+                  ) : null}
+
+                  {watchlistError ? (
+                    <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100/88">
+                      {watchlistError}
+                    </div>
+                  ) : null}
+
+                  <form className="space-y-4" onSubmit={handleWatchlistCreate}>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="watchlist-symbol" className="text-slate-200">종목 코드</Label>
+                        <Input
+                          id="watchlist-symbol"
+                          value={watchlistForm.symbol}
+                          onChange={(event) => handleWatchlistFieldChange('symbol', event.target.value.toUpperCase())}
+                          placeholder="예: NVDA"
+                          className="border-white/10 bg-slate-950/40 text-white placeholder:text-slate-500"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="watchlist-name" className="text-slate-200">종목명</Label>
+                        <Input
+                          id="watchlist-name"
+                          value={watchlistForm.name}
+                          onChange={(event) => handleWatchlistFieldChange('name', event.target.value)}
+                          placeholder="예: NVIDIA"
+                          className="border-white/10 bg-slate-950/40 text-white placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-slate-200">스탠스</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {stanceOptions.map((option) => (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => handleWatchlistFieldChange('stance', option)}
+                            className={`rounded-full border px-3 py-1.5 text-sm transition ${watchlistForm.stance === option ? 'border-emerald-300/40 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-slate-950/35 text-slate-300 hover:bg-white/10'}`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_120px]">
+                      <div className="space-y-2">
+                        <Label htmlFor="watchlist-summary" className="text-slate-200">운용 메모</Label>
+                        <Textarea
+                          id="watchlist-summary"
+                          value={watchlistForm.summary}
+                          onChange={(event) => handleWatchlistFieldChange('summary', event.target.value)}
+                          placeholder="왜 추적하는지, 어떤 조건에서 비중을 보거나 경계할지 짧게 적습니다."
+                          className="min-h-[120px] border-white/10 bg-slate-950/40 text-white placeholder:text-slate-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="watchlist-order" className="text-slate-200">표시 순서</Label>
+                        <Input
+                          id="watchlist-order"
+                          type="number"
+                          min={0}
+                          value={watchlistForm.sortOrder}
+                          onChange={(event) => handleWatchlistFieldChange('sortOrder', event.target.value)}
+                          className="border-white/10 bg-slate-950/40 text-white placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+
+                    <Button type="submit" className="w-full bg-emerald-500 text-slate-950 hover:bg-emerald-400" disabled={submittingWatchlist}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      {submittingWatchlist ? '추가 중...' : '추적 종목 추가'}
+                    </Button>
+                  </form>
+
+                  <div className="space-y-3">
+                    <div className="text-xs uppercase tracking-[0.24em] text-slate-400/58">현재 watchlist</div>
+                    {watchlistItems.length > 0 ? (
+                      watchlistItems.map((item) => (
+                        <div key={item.id} className="rounded-2xl border border-white/10 bg-slate-950/35 px-4 py-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold text-white">{item.symbol}</div>
+                              {item.name ? <div className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-400/60">{item.name}</div> : null}
+                              {item.summary ? <p className="mt-2 text-sm leading-6 text-slate-300/72">{item.summary}</p> : null}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="text-slate-300 hover:bg-white/10 hover:text-white"
+                              onClick={() => handleWatchlistDelete(item.id)}
+                              disabled={deletingWatchlistId === item.id}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              {deletingWatchlistId === item.id ? '삭제 중...' : '삭제'}
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-white/15 bg-slate-950/25 px-4 py-4 text-sm leading-6 text-slate-300/66">
+                        아직 등록된 상시 watchlist가 없습니다.
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
             <Card className="border-white/10 bg-white/5 text-slate-100 shadow-[0_20px_55px_rgba(2,6,23,0.22)]">
               <CardHeader>

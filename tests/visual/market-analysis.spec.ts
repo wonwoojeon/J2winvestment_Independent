@@ -10,12 +10,14 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(page).toHaveURL(/\/market-analysis$/);
     await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '운영 상태' }).first()).toBeVisible();
+    await expect(page.getByText('상시 추적 종목')).toBeVisible();
   });
 
   test('direct market analysis route renders operating status panel', async ({ page }) => {
-    await page.goto('/market-analysis', { waitUntil: 'networkidle' });
+    await page.goto('/market-analysis', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('heading', { name: '오늘의 시장분석' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '운영 상태' }).first()).toBeVisible();
+    await expect(page.getByText('상시 추적 종목')).toBeVisible();
   });
 });
