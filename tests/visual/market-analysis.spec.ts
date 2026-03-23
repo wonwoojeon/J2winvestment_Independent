@@ -171,6 +171,15 @@ test.describe('Market Analysis Public Entry', () => {
     await expect(page.getByText('데이터 파이프라인')).toHaveCount(0);
   });
 
+  test('market analysis reuses site background mood and keep-all typography', async ({ page }) => {
+    await mockMarketAnalysisFeed(page);
+    await page.goto('/market-analysis', { waitUntil: 'networkidle' });
+
+    await expect(page.locator('video source[src="/background.mp4"]')).toHaveCount(1);
+    await expect(page.getByRole('heading', { name: mockReports[0].title })).toHaveClass(/break-keep/);
+    await expect(page.getByRole('button', { name: '핵심 포인트 1 상세 보기' }).locator('p').first()).toHaveClass(/break-keep/);
+  });
+
   test('market analysis history card opens and closes detail dialog', async ({ page }) => {
     await mockMarketAnalysisFeed(page);
     await page.goto('/', { waitUntil: 'networkidle' });
@@ -187,7 +196,7 @@ test.describe('Market Analysis Public Entry', () => {
     const historyDialog = page.getByRole('dialog');
     await expect(historyDialog).toBeVisible();
     await expect(historyDialog.getByText('히스토리 상세')).toBeVisible();
-    await page.mouse.click(10, 10);
+    await page.getByTestId('dialog-overlay').click({ position: { x: 16, y: 16 } });
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
