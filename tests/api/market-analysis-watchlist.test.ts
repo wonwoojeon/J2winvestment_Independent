@@ -7,7 +7,7 @@ import {
   isAdminEmail,
   mapMarketAnalysisWatchlistRows,
   readWatchlistViewer,
-} from '../../api/_lib/market-analysis-watchlist.ts';
+} from '../../api/lib/market-analysis-watchlist.ts';
 import {
   normalizeMarketAnalysisWatchlistInput,
   readWatchlistSummary,
