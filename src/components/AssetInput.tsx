@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +12,12 @@ import {
   journalFormTone,
   parseNumberInputValue,
 } from '@/lib/journalFormFields';
+import {
+  isAssetPriceLookupSupported,
+  normalizeAssetTickerInput,
+  shouldAutoFetchAssetPrice,
+  type AssetPriceLookupMarket,
+} from '@/lib/assetPriceLookup';
 
 interface AssetInputProps {
   title: string;
@@ -19,10 +25,22 @@ interface AssetInputProps {
   onStocksChange: (stocks: Stock[]) => void;
   placeholder?: string;
   currency?: string;
+  market: AssetPriceLookupMarket;
+  journalDate: string;
 }
 
-export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종목명', currency = '' }: AssetInputProps) => {
+export const AssetInput = ({
+  title,
+  stocks,
+  onStocksChange,
+  placeholder = '종목명',
+  currency = '',
+  market,
+  journalDate,
+}: AssetInputProps) => {
   const [loading, setLoading] = useState<string | null>(null);
+  const symbolSnapshotsRef = useRef<Record<string, string>>({});
+  const isLookupSupported = isAssetPriceLookupSupported(market);
 
   const addStock = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -44,27 +62,57 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
     onStocksChange(stocks.filter((stock) => stock.id !== id));
   };
 
+  const updateStockFields = (id: string, patch: Partial<Stock>) => {
+    onStocksChange(stocks.map((stock) => (stock.id === id ? { ...stock, ...patch } : stock)));
+  };
+
   const updateStock = (id: string, field: keyof Stock, value: string | number) => {
-    onStocksChange(stocks.map((stock) =>
-      stock.id === id ? { ...stock, [field]: value } : stock
-    ));
+    updateStockFields(id, { [field]: value } as Partial<Stock>);
+  };
+
+  const fetchPriceForSymbol = async (id: string, symbol: string) => {
+    const normalizedSymbol = normalizeAssetTickerInput(symbol, market);
+    if (!normalizedSymbol || !isLookupSupported) return;
+
+    setLoading(id);
+    try {
+      const price = await fetchStockPrice(normalizedSymbol, {
+        date: journalDate,
+        market,
+      });
+      updateStockFields(id, { symbol: normalizedSymbol, price });
+    } catch (error) {
+      console.error('Failed to fetch price:', error);
+    } finally {
+      setLoading((current) => (current === id ? null : current));
+    }
   };
 
   const fetchPrice = async (e: React.MouseEvent, id: string, symbol: string) => {
     e.preventDefault();
     e.stopPropagation();
+    await fetchPriceForSymbol(id, symbol);
+  };
 
-    if (!symbol) return;
+  const handleSymbolBlur = async (stock: Stock) => {
+    const previousSymbol = symbolSnapshotsRef.current[stock.id] ?? '';
+    delete symbolSnapshotsRef.current[stock.id];
 
-    setLoading(id);
-    try {
-      const price = await fetchStockPrice(symbol.toUpperCase());
-      updateStock(id, 'price', price);
-    } catch (error) {
-      console.error('Failed to fetch price:', error);
-    } finally {
-      setLoading(null);
+    const normalizedSymbol = normalizeAssetTickerInput(stock.symbol, market);
+    if (normalizedSymbol !== stock.symbol) {
+      updateStockFields(stock.id, { symbol: normalizedSymbol });
     }
+
+    if (!shouldAutoFetchAssetPrice({
+      market,
+      previousSymbol,
+      nextSymbol: normalizedSymbol,
+      currentPrice: stock.price,
+    })) {
+      return;
+    }
+
+    await fetchPriceForSymbol(stock.id, normalizedSymbol);
   };
 
   return (
@@ -76,7 +124,7 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
           type="button"
           size="sm"
           variant="outline"
-          className={["gap-1", journalFormTone.outlineButton].join(" ")}
+          className={["gap-1", journalFormTone.outlineButton].join(' ')}
         >
           <Plus className="h-4 w-4" />
           추가
@@ -86,29 +134,35 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
         {stocks.map((stock) => (
           <div key={stock.id} className="grid grid-cols-12 gap-2 items-end">
             <div className="col-span-4">
-              <Label className={["text-xs", journalFormTone.label].join(" ")}>종목명</Label>
+              <Label className={["text-xs", journalFormTone.label].join(' ')}>종목명</Label>
               <Input
                 placeholder={placeholder}
                 value={stock.symbol}
-                onChange={(e) => updateStock(stock.id, "symbol", e.target.value)}
-                className={["text-sm", journalFormTone.input].join(" ")}
+                onChange={(e) => updateStock(stock.id, 'symbol', e.target.value)}
+                onFocus={() => {
+                  symbolSnapshotsRef.current[stock.id] = stock.symbol;
+                }}
+                onBlur={() => {
+                  void handleSymbolBlur(stock);
+                }}
+                className={["text-sm", journalFormTone.input].join(' ')}
               />
             </div>
             <div className="col-span-2">
-              <Label className={["text-xs", journalFormTone.label].join(" ")}>수량</Label>
+              <Label className={["text-xs", journalFormTone.label].join(' ')}>수량</Label>
               <Input
                 type="number"
                 inputMode="decimal"
                 min="0"
                 step="any"
                 value={formatZeroableNumberInput(stock.quantity)}
-                onChange={(e) => updateStock(stock.id, "quantity", parseNumberInputValue(e.target.value))}
-                className={["text-sm", journalFormTone.input].join(" ")}
+                onChange={(e) => updateStock(stock.id, 'quantity', parseNumberInputValue(e.target.value))}
+                className={["text-sm", journalFormTone.input].join(' ')}
                 placeholder="0"
               />
             </div>
             <div className="col-span-3">
-              <Label className={["text-xs", journalFormTone.label].join(" ")}>가격{currency}</Label>
+              <Label className={["text-xs", journalFormTone.label].join(' ')}>가격{currency}</Label>
               <div className="flex gap-1">
                 <Input
                   type="number"
@@ -116,17 +170,18 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
                   min="0"
                   step="any"
                   value={formatZeroableNumberInput(stock.price)}
-                  onChange={(e) => updateStock(stock.id, "price", parseNumberInputValue(e.target.value))}
-                  className={["text-sm", journalFormTone.input].join(" ")}
+                  onChange={(e) => updateStock(stock.id, 'price', parseNumberInputValue(e.target.value))}
+                  className={["text-sm", journalFormTone.input].join(' ')}
                   placeholder="0"
                 />
                 <Button
-                  onClick={(e) => fetchPrice(e, stock.id, stock.symbol)}
+                  onClick={(e) => void fetchPrice(e, stock.id, stock.symbol)}
                   type="button"
                   size="sm"
                   variant="outline"
-                  disabled={loading === stock.id || !stock.symbol}
-                  className={["px-2", journalFormTone.outlineButton].join(" ")}
+                  disabled={loading === stock.id || !stock.symbol || !isLookupSupported}
+                  className={["px-2", journalFormTone.outlineButton].join(' ')}
+                  title={isLookupSupported ? '해당 날짜 종가 불러오기' : '현재는 미국주식과 코인만 자동 조회를 지원합니다.'}
                 >
                   {loading === stock.id ? (
                     <div className="h-3 w-3 animate-spin rounded-full border-b border-slate-500 dark:border-slate-300" />
@@ -137,7 +192,7 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
               </div>
             </div>
             <div className="col-span-2">
-              <Label className={["text-xs", journalFormTone.label].join(" ")}>평가액</Label>
+              <Label className={["text-xs", journalFormTone.label].join(' ')}>평가액</Label>
               <div className={journalFormTone.assetValue}>
                 {((stock.price || 0) * stock.quantity).toLocaleString()}
               </div>
@@ -148,7 +203,7 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
                 type="button"
                 size="sm"
                 variant="outline"
-                className={["px-2", journalFormTone.outlineButton].join(" ")}
+                className={["px-2", journalFormTone.outlineButton].join(' ')}
               >
                 <Minus className="h-3 w-3" />
               </Button>
@@ -156,7 +211,7 @@ export const AssetInput = ({ title, stocks, onStocksChange, placeholder = '종�
           </div>
         ))}
         {stocks.length === 0 && (
-          <div className={["py-4", "text-center", "text-sm", journalFormTone.helperText].join(" ")}>
+          <div className={["py-4", "text-center", "text-sm", journalFormTone.helperText].join(' ')}>
             + 버튼을 클릭하여 종목을 추가하세요
           </div>
         )}
