@@ -494,8 +494,10 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                   title="🇺🇸 해외주식 (USD)"
                   stocks={formData.foreignStocks}
                   onStocksChange={(stocks) => handleAssetChange('foreignStocks', stocks)}
-                  placeholder="종목명 (예: AAPL)"
+                  placeholder="티커 (예: TSLA)"
                   currency=" USD"
+                  market="us"
+                  journalDate={formData.date}
                 />
               </div>
               <div className={journalFormTone.subPanel}>
@@ -503,8 +505,10 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                   title="🇰🇷 국내주식 (KRW)"
                   stocks={formData.domesticStocks}
                   onStocksChange={(stocks) => handleAssetChange('domesticStocks', stocks)}
-                  placeholder="종목명 (예: 삼성전자)"
+                  placeholder="종목코드/종목명 (예: 005930)"
                   currency=" 원"
+                  market="kr"
+                  journalDate={formData.date}
                 />
               </div>
               <div className={journalFormTone.subPanel}>
@@ -512,8 +516,10 @@ export const JournalForm: React.FC<JournalFormProps> = ({ onSubmit, initialData,
                   title="🪙 암호화폐 (USD)"
                   stocks={formData.cryptocurrency}
                   onStocksChange={(stocks) => handleAssetChange('cryptocurrency', stocks)}
-                  placeholder="코인명 (예: BTC)"
+                  placeholder="티커 (예: BTC)"
                   currency=" USD"
+                  market="crypto"
+                  journalDate={formData.date}
                 />
               </div>
               <Card className={journalFormTone.panel}>

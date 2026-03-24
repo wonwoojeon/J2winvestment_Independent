@@ -1,3 +1,5 @@
+import type { AssetPriceLookupMarket } from '@/lib/assetPriceLookup';
+
 // 환율 및 금융 지표 정보를 가져오는 API 함수들
 export interface ExchangeRate {
   USD_KRW: number;
@@ -403,8 +405,42 @@ export async function fetchComprehensivePsychologyData(targetDate?: string): Pro
 }
 
 // 레거시 함수들 유지
-export async function fetchStockPrice(symbol: string): Promise<number> {
-  return Math.random() * 200 + 50;
+
+export async function fetchStockPrice(
+  symbol: string,
+  options: { date?: string; market?: AssetPriceLookupMarket } = {}
+): Promise<number> {
+  const url = new URL('/api/asset-price', window.location.origin);
+  url.searchParams.set('symbol', symbol);
+
+  if (options.date) {
+    url.searchParams.set('date', options.date);
+  }
+
+  if (options.market) {
+    url.searchParams.set('market', options.market);
+  }
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    let errorMessage = `가격 조회 실패: ${response.status}`;
+    try {
+      const body = await response.json() as { error?: string };
+      if (body.error) {
+        errorMessage = body.error;
+      }
+    } catch {
+      // ignore non-json error payloads
+    }
+    throw new Error(errorMessage);
+  }
+
+  const payload = await response.json() as { price?: number };
+  if (!Number.isFinite(payload.price)) {
+    throw new Error('가격 응답 형식이 올바르지 않습니다.');
+  }
+
+  return payload.price as number;
 }
 
 export async function fetchExchangeRate(): Promise<number> {
